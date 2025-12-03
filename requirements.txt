@@ -5,6 +5,9 @@
 langgraph>=0.2.0
 langchain>=0.3.0
 
+# LLM Integration (Google Gemini)
+google-genai>=1.0.0
+
 # Data Processing
 pandas>=2.0.0
 numpy>=1.24.0
@@ -32,4 +35,5 @@ tqdm>=4.65.0
 
 # Logging
 loguru>=0.7.0
+
 

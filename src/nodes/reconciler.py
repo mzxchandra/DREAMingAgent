@@ -1,10 +1,13 @@
 """
-Reconciler Node: The Reasoning Engine
+Reconciler Node: The AI Reasoning Engine
 
 Compares literature assertions (RegulonDB) with statistical evidence (M3D)
 to validate, contradict, or discover regulatory interactions.
 
-This is where biology meets statistics.
+Uses LLM (Google Gemini) for nuanced biological reasoning when available,
+with fallback to rule-based decisions.
+
+This is where biology meets AI.
 """
 
 from typing import Dict, Any, List, Tuple, Optional
@@ -18,16 +21,28 @@ from ..state import (
     EvidenceLevel,
     InteractionEffect
 )
+from ..llm.client import generate_response, generate_structured_response
+from ..llm.prompts import (
+    RECONCILER_SYSTEM_PROMPT,
+    format_reconciliation_prompt,
+    format_batch_reconciliation_prompt
+)
 
 
 # ============================================================================
 # Configuration Constants
 # ============================================================================
 
-# Z-score thresholds for reconciliation logic
+# Z-score thresholds for reconciliation logic (used in fallback mode)
 HIGH_DATA_SUPPORT = 4.0      # Strong data support
 MODERATE_DATA_SUPPORT = 2.0  # Some data support
 LOW_DATA_SUPPORT = 1.0       # Weak/no data support
+
+# Whether to use LLM for reasoning (can be toggled)
+USE_LLM_REASONING = True
+
+# Use batch mode for efficiency (one LLM call per TF instead of per edge)
+USE_BATCH_MODE = True
 
 
 # ============================================================================
@@ -36,25 +51,25 @@ LOW_DATA_SUPPORT = 1.0       # Weak/no data support
 
 def reconciler_node(state: AgentState) -> Dict[str, Any]:
     """
-    Reconciler Node: Compares Literature vs Data.
+    Reconciler Node: Compares Literature vs Data using AI Reasoning.
     
-    This node executes the core reconciliation logic:
+    This node executes reconciliation logic using LLM when available:
+    - Sends edge information to Gemini for biological reasoning
+    - Falls back to rule-based logic if LLM unavailable
     
-    Case A (Validation): Strong lit + High data → Confirmed-Active
-    Case B (Conditional Silence): Strong lit + Low data → Context Gap
-    Case C (Contradiction): Weak lit + Low data → Probable False Positive
-    Case D (Discovery): No lit + High data → Novel Hypothesis
+    Cases handled:
+    - Case A (Validation): Strong lit + High data → Confirmed-Active
+    - Case B (Conditional Silence): Strong lit + Low data → Context Gap
+    - Case C (Contradiction): Weak lit + Low data → Probable False Positive
+    - Case D (Discovery): No lit + High data → Novel Hypothesis
     
     Args:
-        state: Current agent state with:
-            - current_batch_tfs: TFs being processed
-            - analysis_results: Statistical results from Analysis Agent
-            - literature_graph: RegulonDB knowledge graph
+        state: Current agent state
             
     Returns:
         Updated state with reconciliation_log populated
     """
-    logger.info("=== RECONCILER NODE: Comparing Literature vs Data ===")
+    logger.info("=== RECONCILER NODE: AI-Powered Reconciliation ===")
     
     current_batch_tfs = state.get("current_batch_tfs", [])
     analysis_results = state.get("analysis_results", {})
@@ -73,6 +88,7 @@ def reconciler_node(state: AgentState) -> Dict[str, Any]:
             continue
         
         tf_results = analysis_results[tf]
+        tf_name = bnumber_to_name.get(tf, tf)
         
         # Handle error cases
         if isinstance(tf_results, dict) and "error" in tf_results:
@@ -85,24 +101,40 @@ def reconciler_node(state: AgentState) -> Dict[str, Any]:
         
         # Get all known targets for this TF from literature
         literature_targets = _get_literature_targets(tf, literature_graph)
-        logger.info(f"TF {tf}: {len(literature_targets)} known literature targets")
+        logger.info(f"TF {tf_name}: {len(literature_targets)} known literature targets")
         
-        # Process each known target (Cases A, B, C)
-        for target, lit_attrs in literature_targets.items():
-            result = _reconcile_known_edge(
+        # Process using LLM or fallback
+        if USE_LLM_REASONING and USE_BATCH_MODE:
+            # Batch mode: one LLM call for all edges of this TF
+            results = _reconcile_batch_with_llm(
                 tf=tf,
-                target=target,
-                literature_attrs=lit_attrs,
-                data_results=tf_results.get(target),
+                tf_name=tf_name,
+                literature_targets=literature_targets,
+                tf_results=tf_results,
                 context=current_context,
                 bnumber_to_name=bnumber_to_name
             )
+        else:
+            # Individual processing (LLM per edge or rule-based)
+            results = _reconcile_individually(
+                tf=tf,
+                tf_name=tf_name,
+                literature_targets=literature_targets,
+                tf_results=tf_results,
+                context=current_context,
+                bnumber_to_name=bnumber_to_name,
+                use_llm=USE_LLM_REASONING
+            )
+        
+        # Add results to logs
+        for result in results:
+            result_dict = result.to_dict()
+            reconciliation_log.append(result_dict)
             
-            reconciliation_log.append(result.to_dict())
-            
-            # Track false positive candidates
             if result.status == "ProbableFalsePos":
-                false_positive_candidates.append(result.to_dict())
+                false_positive_candidates.append(result_dict)
+            elif result.status == "NovelHypothesis":
+                novel_hypotheses.append(result_dict)
         
         # Process novel discoveries (Case D)
         novel_edges = _find_novel_edges(
@@ -117,9 +149,7 @@ def reconciler_node(state: AgentState) -> Dict[str, Any]:
             reconciliation_log.append(novel.to_dict())
             novel_hypotheses.append(novel.to_dict())
         
-        logger.info(
-            f"TF {tf}: {len(novel_edges)} novel hypotheses discovered"
-        )
+        logger.info(f"TF {tf_name}: {len(novel_edges)} novel hypotheses discovered")
     
     # Summary statistics
     total_validated = sum(1 for r in reconciliation_log if r.get("reconciliation_status") == "Validated")
@@ -141,23 +171,235 @@ def reconciler_node(state: AgentState) -> Dict[str, Any]:
 
 
 # ============================================================================
-# Reconciliation Logic Functions
+# LLM-Powered Reconciliation
+# ============================================================================
+
+def _reconcile_batch_with_llm(
+    tf: str,
+    tf_name: str,
+    literature_targets: Dict[str, Dict[str, Any]],
+    tf_results: Dict[str, Any],
+    context: str,
+    bnumber_to_name: Dict[str, str]
+) -> List[ReconciliationResult]:
+    """
+    Reconcile all edges for a TF in a single LLM call (batch mode).
+    """
+    results = []
+    
+    # Prepare edge data for batch prompt
+    edges_for_llm = []
+    edge_lookup = {}  # To map back results
+    
+    for target, lit_attrs in literature_targets.items():
+        target_name = bnumber_to_name.get(target, target)
+        data_results = tf_results.get(target)
+        
+        z_score = data_results.get("z_score", 0.0) if data_results else 0.0
+        mi = data_results.get("mi", 0.0) if data_results else 0.0
+        
+        edge_data = {
+            "target": target_name,
+            "target_id": target,
+            "evidence": lit_attrs.get("evidence_type", "Unknown"),
+            "effect": lit_attrs.get("effect", "?"),
+            "z_score": z_score,
+            "mi": mi
+        }
+        edges_for_llm.append(edge_data)
+        edge_lookup[target_name] = (target, lit_attrs, data_results)
+    
+    if not edges_for_llm:
+        return results
+    
+    # Call LLM
+    prompt = format_batch_reconciliation_prompt(tf_name, edges_for_llm, context)
+    llm_response = generate_structured_response(prompt, RECONCILER_SYSTEM_PROMPT)
+    
+    if llm_response and "edges" in llm_response:
+        # Process LLM results
+        logger.info(f"LLM batch reasoning for {tf_name}: {llm_response.get('summary', 'N/A')}")
+        
+        for edge_result in llm_response["edges"]:
+            target_name = edge_result.get("target")
+            if target_name not in edge_lookup:
+                continue
+            
+            target_id, lit_attrs, data_results = edge_lookup[target_name]
+            
+            # Map LLM status to our status enum
+            llm_status = edge_result.get("status", "NeedsReview")
+            status = _map_llm_status(llm_status)
+            
+            z_score = data_results.get("z_score", 0.0) if data_results else 0.0
+            mi = data_results.get("mi", 0.0) if data_results else 0.0
+            
+            result = ReconciliationResult(
+                source_tf=tf,
+                target_gene=target_id,
+                literature_evidence=lit_attrs.get("evidence_type", "Unknown"),
+                literature_effect=lit_attrs.get("effect", "?"),
+                data_z_score=z_score,
+                data_mi=mi,
+                status=status,
+                context_tags=[context] if context else [],
+                notes=f"[AI] {edge_result.get('note', 'LLM reasoning applied')}"
+            )
+            results.append(result)
+            
+            # Remove from lookup to track unprocessed
+            del edge_lookup[target_name]
+    
+    # Fallback for any edges not processed by LLM
+    for target_name, (target_id, lit_attrs, data_results) in edge_lookup.items():
+        result = _reconcile_known_edge_rule_based(
+            tf=tf,
+            target=target_id,
+            literature_attrs=lit_attrs,
+            data_results=data_results,
+            context=context,
+            bnumber_to_name=bnumber_to_name
+        )
+        results.append(result)
+    
+    return results
+
+
+def _reconcile_with_llm(
+    tf: str,
+    tf_name: str,
+    target: str,
+    target_name: str,
+    literature_attrs: Dict[str, Any],
+    data_results: Optional[Dict[str, Any]],
+    context: str
+) -> Optional[ReconciliationResult]:
+    """
+    Use LLM to reason about a single edge.
+    
+    Returns None if LLM fails (caller should use fallback).
+    """
+    lit_evidence = literature_attrs.get("evidence_type", "Unknown")
+    lit_effect = literature_attrs.get("effect", "?")
+    z_score = data_results.get("z_score", 0.0) if data_results else 0.0
+    mi = data_results.get("mi", 0.0) if data_results else 0.0
+    
+    # Format prompt
+    prompt = format_reconciliation_prompt(
+        tf_name=tf_name,
+        target_gene=target_name,
+        literature_evidence=lit_evidence,
+        literature_effect=lit_effect,
+        z_score=z_score,
+        mi_score=mi,
+        context=context
+    )
+    
+    # Get LLM response
+    llm_response = generate_structured_response(prompt, RECONCILER_SYSTEM_PROMPT)
+    
+    if llm_response is None:
+        return None
+    
+    # Parse LLM decision
+    llm_status = llm_response.get("status", "NeedsReview")
+    confidence = llm_response.get("confidence", 0.5)
+    reasoning = llm_response.get("reasoning", "")
+    recommendation = llm_response.get("recommendation", "")
+    
+    # Map LLM status to our enum
+    status = _map_llm_status(llm_status)
+    
+    # Build notes from LLM reasoning
+    notes = f"[AI Confidence: {confidence:.0%}] {reasoning}"
+    if recommendation:
+        notes += f" Recommendation: {recommendation}"
+    
+    return ReconciliationResult(
+        source_tf=tf,
+        target_gene=target,
+        literature_evidence=lit_evidence,
+        literature_effect=lit_effect,
+        data_z_score=z_score,
+        data_mi=mi,
+        status=status,
+        context_tags=[context] if context else [],
+        notes=notes
+    )
+
+
+def _map_llm_status(llm_status: str) -> ReconciliationStatus:
+    """Map LLM status string to our enum."""
+    status_map = {
+        "Validated": "Validated",
+        "ConditionSilent": "ConditionSilent",
+        "ProbableFalsePos": "ProbableFalsePos",
+        "NovelHypothesis": "NovelHypothesis",
+        "NeedsReview": "Pending",
+        "Pending": "Pending"
+    }
+    return status_map.get(llm_status, "Pending")
+
+
+# ============================================================================
+# Individual Processing (LLM or Rule-Based)
+# ============================================================================
+
+def _reconcile_individually(
+    tf: str,
+    tf_name: str,
+    literature_targets: Dict[str, Dict[str, Any]],
+    tf_results: Dict[str, Any],
+    context: str,
+    bnumber_to_name: Dict[str, str],
+    use_llm: bool = True
+) -> List[ReconciliationResult]:
+    """Process each edge individually."""
+    results = []
+    
+    for target, lit_attrs in literature_targets.items():
+        target_name = bnumber_to_name.get(target, target)
+        data_results = tf_results.get(target)
+        
+        result = None
+        
+        # Try LLM first if enabled
+        if use_llm:
+            result = _reconcile_with_llm(
+                tf=tf,
+                tf_name=tf_name,
+                target=target,
+                target_name=target_name,
+                literature_attrs=lit_attrs,
+                data_results=data_results,
+                context=context
+            )
+        
+        # Fallback to rule-based if LLM failed or disabled
+        if result is None:
+            result = _reconcile_known_edge_rule_based(
+                tf=tf,
+                target=target,
+                literature_attrs=lit_attrs,
+                data_results=data_results,
+                context=context,
+                bnumber_to_name=bnumber_to_name
+            )
+        
+        results.append(result)
+    
+    return results
+
+
+# ============================================================================
+# Rule-Based Fallback (Original Logic)
 # ============================================================================
 
 def _get_literature_targets(
     tf: str,
     graph: nx.DiGraph
 ) -> Dict[str, Dict[str, Any]]:
-    """
-    Get all known targets for a TF from the literature graph.
-    
-    Args:
-        tf: TF identifier
-        graph: Literature graph
-        
-    Returns:
-        Dictionary mapping target genes to edge attributes
-    """
+    """Get all known targets for a TF from the literature graph."""
     targets = {}
     
     if not graph.has_node(tf):
@@ -169,7 +411,7 @@ def _get_literature_targets(
     return targets
 
 
-def _reconcile_known_edge(
+def _reconcile_known_edge_rule_based(
     tf: str,
     target: str,
     literature_attrs: Dict[str, Any],
@@ -178,25 +420,8 @@ def _reconcile_known_edge(
     bnumber_to_name: Dict[str, str]
 ) -> ReconciliationResult:
     """
-    Reconcile a known literature edge with data evidence.
-    
-    Implements the core logic:
-    - Case A: Strong lit + High data → Validated
-    - Case B: Strong lit + Low data → ConditionSilent
-    - Case C: Weak lit + Low data → ProbableFalsePos
-    
-    Args:
-        tf: TF identifier
-        target: Target gene identifier
-        literature_attrs: Edge attributes from RegulonDB
-        data_results: Statistical results from Analysis Agent (or None)
-        context: Current analysis context
-        bnumber_to_name: ID mapping
-        
-    Returns:
-        ReconciliationResult object
+    Rule-based reconciliation (fallback when LLM unavailable).
     """
-    # Extract literature information
     lit_evidence = literature_attrs.get("evidence_type", "Unknown")
     lit_effect = literature_attrs.get("effect", "?")
     tf_name = bnumber_to_name.get(tf, tf)
@@ -212,22 +437,21 @@ def _reconcile_known_edge(
     
     # Extract data evidence
     if data_results is None:
-        # Target not in expression matrix or not analyzed
         data_z_score = 0.0
         data_mi = 0.0
-        notes = "Target gene not found in expression data"
+        notes = "[Rule-based] Target gene not found in expression data"
         status: ReconciliationStatus = "ConditionSilent"
     else:
         data_z_score = data_results.get("z_score", 0.0)
         data_mi = data_results.get("mi", 0.0)
         
-        # Apply reconciliation logic
-        status, notes = _determine_status(
+        status, notes = _determine_status_rule_based(
             evidence_level=evidence_level,
             z_score=data_z_score,
             tf_name=tf_name,
             gene_name=gene_name
         )
+        notes = f"[Rule-based] {notes}"
     
     return ReconciliationResult(
         source_tf=tf,
@@ -242,99 +466,45 @@ def _reconcile_known_edge(
     )
 
 
-def _determine_status(
+def _determine_status_rule_based(
     evidence_level: EvidenceLevel,
     z_score: float,
     tf_name: str,
     gene_name: str
 ) -> Tuple[ReconciliationStatus, str]:
-    """
-    Determine reconciliation status based on evidence and data support.
-    
-    Args:
-        evidence_level: Literature evidence strength
-        z_score: CLR z-score from data
-        tf_name: TF name for logging
-        gene_name: Gene name for logging
-        
-    Returns:
-        Tuple of (status, notes)
-    """
+    """Determine reconciliation status using rules (original logic)."""
     has_high_data = z_score >= HIGH_DATA_SUPPORT
     has_moderate_data = z_score >= MODERATE_DATA_SUPPORT
     has_low_data = z_score < LOW_DATA_SUPPORT
     
-    # Case A: Strong literature + High data → Validated
     if evidence_level == "Strong" and has_high_data:
-        return (
-            "Validated",
-            f"Strong literature evidence confirmed by data (z={z_score:.2f})"
-        )
+        return ("Validated", f"Strong literature evidence confirmed by data (z={z_score:.2f})")
     
-    # Case A (moderate): Strong literature + Moderate data → Validated
     if evidence_level == "Strong" and has_moderate_data:
-        return (
-            "Validated",
-            f"Strong literature evidence with moderate data support (z={z_score:.2f})"
-        )
+        return ("Validated", f"Strong literature evidence with moderate data support (z={z_score:.2f})")
     
-    # Case B: Strong literature + Low data → Conditional Silence
     if evidence_level == "Strong" and has_low_data:
-        return (
-            "ConditionSilent",
-            f"Physical binding exists but interaction silent in current conditions (z={z_score:.2f}). "
-            "TF may be inactive in sampled experiments."
-        )
+        return ("ConditionSilent", f"Physical binding exists but interaction silent in current conditions (z={z_score:.2f})")
     
-    # Case B (intermediate): Strong literature + neither high nor low
     if evidence_level == "Strong":
-        return (
-            "ConditionSilent",
-            f"Strong evidence but marginal data support (z={z_score:.2f}). "
-            "Possible partial activation in subset of conditions."
-        )
+        return ("ConditionSilent", f"Strong evidence but marginal data support (z={z_score:.2f})")
     
-    # Case C: Weak literature + Low data → Probable False Positive
     if evidence_level == "Weak" and has_low_data:
-        return (
-            "ProbableFalsePos",
-            f"Weak literature evidence unsupported by data (z={z_score:.2f}). "
-            "Candidate for database pruning."
-        )
+        return ("ProbableFalsePos", f"Weak literature evidence unsupported by data (z={z_score:.2f})")
     
-    # Weak literature + High data → Upgrade to Validated
     if evidence_level == "Weak" and has_high_data:
-        return (
-            "Validated",
-            f"Weak literature evidence upgraded by strong data support (z={z_score:.2f})"
-        )
+        return ("Validated", f"Weak literature evidence upgraded by strong data support (z={z_score:.2f})")
     
-    # Weak literature + Moderate data → Needs further investigation
     if evidence_level == "Weak" and has_moderate_data:
-        return (
-            "Pending",
-            f"Weak literature evidence with some data support (z={z_score:.2f}). "
-            "Requires further validation."
-        )
+        return ("Pending", f"Weak literature evidence with some data support (z={z_score:.2f})")
     
-    # Unknown evidence level
     if evidence_level == "Unknown":
         if has_high_data:
-            return (
-                "Validated",
-                f"Unknown evidence type but strong data support (z={z_score:.2f})"
-            )
+            return ("Validated", f"Unknown evidence type but strong data support (z={z_score:.2f})")
         else:
-            return (
-                "Pending",
-                f"Unknown evidence type with z={z_score:.2f}. Manual review recommended."
-            )
+            return ("Pending", f"Unknown evidence type with z={z_score:.2f}")
     
-    # Default fallback
-    return (
-        "Pending",
-        f"Edge requires manual review (evidence={evidence_level}, z={z_score:.2f})"
-    )
+    return ("Pending", f"Edge requires manual review (evidence={evidence_level}, z={z_score:.2f})")
 
 
 def _find_novel_edges(
@@ -344,24 +514,9 @@ def _find_novel_edges(
     context: str,
     bnumber_to_name: Dict[str, str]
 ) -> List[ReconciliationResult]:
-    """
-    Find novel regulatory relationships not in literature.
-    
-    Case D: No literature + High data → Novel Hypothesis
-    
-    Args:
-        tf: TF identifier
-        tf_results: Analysis results for this TF
-        literature_graph: Literature graph
-        context: Current analysis context
-        bnumber_to_name: ID mapping
-        
-    Returns:
-        List of novel hypothesis ReconciliationResults
-    """
+    """Find novel regulatory relationships not in literature (Case D)."""
     novel_edges = []
     
-    # Skip if results indicate an error
     if not isinstance(tf_results, dict):
         return novel_edges
     
@@ -369,22 +524,18 @@ def _find_novel_edges(
         return novel_edges
     
     for gene, result in tf_results.items():
-        # Skip metadata keys
         if gene.startswith("_"):
             continue
         
-        # Skip if it's a known literature target
         if literature_graph.has_edge(tf, gene):
             continue
         
-        # Skip non-dict results
         if not isinstance(result, dict):
             continue
         
         z_score = result.get("z_score", 0.0)
         mi = result.get("mi", 0.0)
         
-        # Only report high-confidence novel discoveries
         if z_score >= HIGH_DATA_SUPPORT:
             tf_name = bnumber_to_name.get(tf, tf)
             gene_name = bnumber_to_name.get(gene, gene)
@@ -398,9 +549,8 @@ def _find_novel_edges(
                 data_mi=mi,
                 status="NovelHypothesis",
                 context_tags=[context] if context else [],
-                notes=f"High data support (z={z_score:.2f}) without literature record. "
-                      f"Candidate for experimental validation. "
-                      f"Check HT-TFBS (ChIP-seq) for binding evidence."
+                notes=f"[Discovery] High data support (z={z_score:.2f}) without literature record. "
+                      f"Candidate for experimental validation."
             )
             novel_edges.append(novel)
     
@@ -414,15 +564,7 @@ def _find_novel_edges(
 def generate_reconciliation_summary(
     reconciliation_log: List[Dict[str, Any]]
 ) -> Dict[str, Any]:
-    """
-    Generate a summary of reconciliation results.
-    
-    Args:
-        reconciliation_log: Full reconciliation log
-        
-    Returns:
-        Summary statistics dictionary
-    """
+    """Generate a summary of reconciliation results."""
     status_counts = {
         "Validated": 0,
         "ConditionSilent": 0,
@@ -436,34 +578,22 @@ def generate_reconciliation_summary(
         if status in status_counts:
             status_counts[status] += 1
     
-    # Calculate statistics
     total = len(reconciliation_log)
     
-    summary = {
+    return {
         "total_edges_analyzed": total,
         "status_counts": status_counts,
         "validation_rate": status_counts["Validated"] / total if total > 0 else 0,
         "false_positive_rate": status_counts["ProbableFalsePos"] / total if total > 0 else 0,
         "novel_discovery_count": status_counts["NovelHypothesis"]
     }
-    
-    return summary
 
 
 def export_reconciled_network(
     reconciliation_log: List[Dict[str, Any]],
     output_format: str = "tsv"
 ) -> str:
-    """
-    Export reconciled network to string format.
-    
-    Args:
-        reconciliation_log: Full reconciliation log
-        output_format: Output format ("tsv", "graphml")
-        
-    Returns:
-        Formatted string representation
-    """
+    """Export reconciled network to string format."""
     if output_format == "tsv":
         headers = [
             "Source_TF", "Target_Gene", "RegulonDB_Evidence", 
@@ -491,4 +621,3 @@ def export_reconciled_network(
     
     else:
         raise ValueError(f"Unsupported output format: {output_format}")
-

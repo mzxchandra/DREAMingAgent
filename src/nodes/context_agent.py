@@ -1,19 +1,36 @@
 """
-Context Agent Node: Intelligent sample filtering.
+Context Agent Node: AI-Powered Sample Filtering
 
-Filters M3D experiments based on TF-specific biological context,
-ensuring that correlation analysis uses relevant conditions.
+Uses LLM (Google Gemini) to intelligently determine which experimental 
+conditions are relevant for analyzing a given transcription factor.
+
+Falls back to a knowledge base mapping when LLM is unavailable.
 """
 
-from typing import Dict, Any, List, Set
+from typing import Dict, Any, List, Set, Optional
 import pandas as pd
 from loguru import logger
 
 from ..state import AgentState
+from ..llm.client import generate_structured_response
+from ..llm.prompts import CONTEXT_AGENT_SYSTEM_PROMPT, format_context_prompt
 
 
-# Known TF to condition mappings (biological context)
-# This acts as a simplified "Gensor Unit" - mapping TFs to their activating conditions
+# ============================================================================
+# Configuration
+# ============================================================================
+
+# Whether to use LLM for context determination
+USE_LLM_CONTEXT = True
+
+# Minimum samples required for statistical validity
+MIN_SAMPLES = 10
+
+
+# ============================================================================
+# Fallback Knowledge Base (used when LLM unavailable)
+# ============================================================================
+
 TF_CONDITION_MAP = {
     # Anaerobic regulators
     "fnr": ["anaerobic", "anaerobiosis", "oxygen", "fermentation", "no_oxygen"],
@@ -55,16 +72,16 @@ TF_CONDITION_MAP = {
 }
 
 
+# ============================================================================
+# Main Context Agent Node
+# ============================================================================
+
 def context_agent_node(state: AgentState) -> Dict[str, Any]:
     """
-    Context Agent Node: Filters samples based on TF context.
+    Context Agent Node: AI-Powered Sample Filtering.
     
-    This node is the "Contextualizer" of the system. It:
-    1. Identifies the biological function of current TFs
-    2. Filters M3D metadata to find relevant experiments
-    3. Returns sample indices for context-aware analysis
-    
-    If no specific context is found for a TF, all samples are used.
+    Uses LLM to intelligently determine which experimental conditions
+    are relevant for analyzing the current transcription factors.
     
     Args:
         state: Current agent state
@@ -72,7 +89,7 @@ def context_agent_node(state: AgentState) -> Dict[str, Any]:
     Returns:
         Updated state with active_sample_indices
     """
-    logger.info("=== CONTEXT AGENT NODE: Filtering relevant samples ===")
+    logger.info("=== CONTEXT AGENT NODE: AI-Powered Sample Selection ===")
     
     current_batch_tfs = state.get("current_batch_tfs", [])
     metadata = state.get("metadata", pd.DataFrame())
@@ -86,25 +103,34 @@ def context_agent_node(state: AgentState) -> Dict[str, Any]:
             "current_context": "no_metadata_available"
         }
     
-    # Collect all relevant keywords for the current TF batch
+    # Collect keywords for all TFs in batch
     all_keywords: Set[str] = set()
+    context_descriptions: List[str] = []
     
     for tf in current_batch_tfs:
-        # Convert b-number to name for lookup
         tf_name = bnumber_to_name.get(tf, tf).lower()
         
-        # Check TF condition map
-        if tf_name in TF_CONDITION_MAP:
-            keywords = TF_CONDITION_MAP[tf_name]
+        # Try LLM first
+        if USE_LLM_CONTEXT:
+            llm_result = _get_context_from_llm(tf_name)
+            
+            if llm_result:
+                keywords = llm_result.get("relevant_conditions", [])
+                all_keywords.update(k.lower() for k in keywords)
+                
+                bio_role = llm_result.get("biological_role", "")
+                reasoning = llm_result.get("reasoning", "")
+                context_descriptions.append(f"{tf_name}: {bio_role}")
+                
+                logger.info(f"[AI] TF {tf_name}: {keywords}")
+                logger.debug(f"[AI] Reasoning: {reasoning}")
+                continue
+        
+        # Fallback to knowledge base
+        keywords = _get_context_from_knowledge_base(tf_name)
+        if keywords:
             all_keywords.update(keywords)
-            logger.info(f"TF {tf_name}: Context keywords = {keywords}")
-        else:
-            # Try partial matching
-            for known_tf, keywords in TF_CONDITION_MAP.items():
-                if known_tf in tf_name or tf_name in known_tf:
-                    all_keywords.update(keywords)
-                    logger.info(f"TF {tf_name} (partial match to {known_tf}): {keywords}")
-                    break
+            logger.info(f"[KB] TF {tf_name}: {keywords}")
     
     # If no specific context found, use all samples
     if not all_keywords:
@@ -121,18 +147,16 @@ def context_agent_node(state: AgentState) -> Dict[str, Any]:
         expression_matrix.columns
     )
     
-    # Ensure minimum sample size for statistical validity
-    MIN_SAMPLES = 10
-    
+    # Ensure minimum sample size
     if len(relevant_samples) < MIN_SAMPLES:
         logger.warning(
             f"Only {len(relevant_samples)} relevant samples found "
             f"(minimum: {MIN_SAMPLES}). Using all samples."
         )
         relevant_samples = list(expression_matrix.columns)
-        context_description = f"fallback_to_all (keywords: {', '.join(all_keywords)})"
+        context_description = f"fallback_to_all (keywords: {', '.join(list(all_keywords)[:5])})"
     else:
-        context_description = f"filtered ({len(relevant_samples)} samples): {', '.join(all_keywords)}"
+        context_description = "; ".join(context_descriptions) if context_descriptions else ", ".join(list(all_keywords)[:5])
     
     logger.info(
         f"Context filtering: {len(relevant_samples)} samples selected "
@@ -145,6 +169,66 @@ def context_agent_node(state: AgentState) -> Dict[str, Any]:
     }
 
 
+# ============================================================================
+# LLM-Powered Context Determination
+# ============================================================================
+
+def _get_context_from_llm(tf_name: str) -> Optional[Dict[str, Any]]:
+    """
+    Use LLM to determine relevant conditions for a TF.
+    
+    Args:
+        tf_name: Name of the transcription factor
+        
+    Returns:
+        Dictionary with relevant_conditions, biological_role, etc.
+        or None if LLM fails
+    """
+    prompt = format_context_prompt(tf_name)
+    
+    response = generate_structured_response(
+        prompt=prompt,
+        system_prompt=CONTEXT_AGENT_SYSTEM_PROMPT
+    )
+    
+    if response and "relevant_conditions" in response:
+        return response
+    
+    return None
+
+
+# ============================================================================
+# Knowledge Base Fallback
+# ============================================================================
+
+def _get_context_from_knowledge_base(tf_name: str) -> List[str]:
+    """
+    Get relevant conditions from hardcoded knowledge base.
+    
+    Args:
+        tf_name: Name of the transcription factor
+        
+    Returns:
+        List of relevant condition keywords
+    """
+    tf_lower = tf_name.lower()
+    
+    # Direct match
+    if tf_lower in TF_CONDITION_MAP:
+        return TF_CONDITION_MAP[tf_lower]
+    
+    # Partial match
+    for known_tf, keywords in TF_CONDITION_MAP.items():
+        if known_tf in tf_lower or tf_lower in known_tf:
+            return keywords
+    
+    return []
+
+
+# ============================================================================
+# Sample Filtering
+# ============================================================================
+
 def _filter_samples_by_keywords(
     metadata: pd.DataFrame,
     keywords: Set[str],
@@ -152,24 +236,21 @@ def _filter_samples_by_keywords(
 ) -> List[str]:
     """
     Filter experiment IDs based on keyword matching in metadata.
-    
-    Searches all text columns in metadata for keyword matches.
     """
     matching_experiments = set()
     
-    # Convert metadata columns to searchable strings
+    # Search all text columns in metadata
     for col in metadata.columns:
-        if metadata[col].dtype == 'object':  # Text columns only
+        if metadata[col].dtype == 'object':
             for idx, value in metadata[col].items():
                 if pd.notna(value):
                     value_lower = str(value).lower()
-                    # Check if any keyword matches
                     for keyword in keywords:
                         if keyword in value_lower:
                             matching_experiments.add(str(idx))
                             break
     
-    # Also check experiment IDs themselves (column names in expression matrix)
+    # Also check experiment IDs themselves
     for col in available_columns:
         col_lower = str(col).lower()
         for keyword in keywords:
@@ -177,28 +258,29 @@ def _filter_samples_by_keywords(
                 matching_experiments.add(col)
                 break
     
-    # Filter to only include columns that exist in expression matrix
+    # Filter to columns that exist in expression matrix
     available_set = set(str(c) for c in available_columns)
     valid_samples = [s for s in matching_experiments if s in available_set]
     
     return valid_samples
 
 
+# ============================================================================
+# Utility Functions
+# ============================================================================
+
 def get_tf_context_description(tf_name: str) -> str:
-    """
-    Get human-readable context description for a TF.
+    """Get human-readable context description for a TF."""
+    # Try LLM
+    if USE_LLM_CONTEXT:
+        result = _get_context_from_llm(tf_name)
+        if result:
+            return f"{tf_name}: {result.get('biological_role', 'Unknown function')}"
     
-    Args:
-        tf_name: Name of the transcription factor
-        
-    Returns:
-        Description of the TF's biological context
-    """
+    # Fallback
     tf_lower = tf_name.lower()
-    
     if tf_lower in TF_CONDITION_MAP:
         conditions = TF_CONDITION_MAP[tf_lower]
         return f"{tf_name} responds to: {', '.join(conditions)}"
     
     return f"{tf_name}: unknown biological context"
-

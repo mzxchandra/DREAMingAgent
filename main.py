@@ -104,6 +104,19 @@ Examples:
         help="Enable verbose output"
     )
     
+    # LLM Options
+    parser.add_argument(
+        "--no-llm",
+        action="store_true",
+        help="Disable LLM reasoning (use rule-based fallbacks)"
+    )
+    parser.add_argument(
+        "--llm-model",
+        type=str,
+        default="gemini-2.5-flash",
+        help="LLM model to use (default: gemini-2.5-flash)"
+    )
+    
     args = parser.parse_args()
     
     # Adjust logging level
@@ -117,6 +130,29 @@ Examples:
         run_with_synthetic_data,
         export_results
     )
+    from src.config import AgentConfig, set_config, disable_llm
+    
+    # Configure LLM usage
+    if args.no_llm:
+        logger.info("LLM reasoning DISABLED - using rule-based fallbacks")
+        disable_llm()
+    else:
+        import os
+        if not os.environ.get("GEMINI_API_KEY"):
+            logger.warning(
+                "GEMINI_API_KEY not set. LLM features will be disabled. "
+                "Set the environment variable or use --no-llm flag."
+            )
+            disable_llm()
+        else:
+            logger.info(f"LLM reasoning ENABLED - using {args.llm_model}")
+            config = AgentConfig(
+                use_llm=True,
+                llm_model=args.llm_model,
+                use_llm_reconciler=True,
+                use_llm_context=True
+            )
+            set_config(config)
     
     try:
         if args.synthetic:
@@ -169,4 +205,5 @@ Examples:
 
 if __name__ == "__main__":
     sys.exit(main())
+
 
