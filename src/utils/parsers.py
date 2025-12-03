@@ -2,10 +2,12 @@
 Data Parsers for RegulonDB and M3D files.
 
 Handles the ingestion of:
-- network_tf_gene.txt (RegulonDB TF-Gene interactions)
-- gene_product.txt (Gene name to b-number mapping)
+- NetworkRegulatorGene.tsv (RegulonDB TF-Gene interactions) - REAL FORMAT
+- GeneProductAllIdentifiersSet.tsv (Gene name to b-number mapping) - REAL FORMAT
 - E_coli_v4_Build_6_exps.tab (M3D expression matrix)
 - E_coli_v4_Build_6_meta.tab (M3D experimental metadata)
+
+Updated to handle real RegulonDB format with dynamic column detection.
 """
 
 import re
@@ -16,15 +18,56 @@ import networkx as nx
 from loguru import logger
 
 
+# ============================================================================
+# Evidence Level Mappings (RegulonDB format)
+# ============================================================================
+
+EVIDENCE_LEVEL_MAP = {
+    'C': 'Confirmed',
+    'S': 'Strong', 
+    'W': 'Weak',
+    '?': 'Unknown',
+    # Fallback for text formats
+    'confirmed': 'Confirmed',
+    'strong': 'Strong',
+    'weak': 'Weak',
+    'unknown': 'Unknown'
+}
+
+INTERACTION_EFFECT_MAP = {
+    '+': '+',
+    '-': '-',
+    '+-': '+-',
+    '-+': '+-',
+    '?': '?',
+    'activator': '+',
+    'repressor': '-',
+    'dual': '+-',
+    'unknown': '?'
+}
+
+
+# ============================================================================
+# RegulonDB Network Parser (Real Format)
+# ============================================================================
+
 def parse_tf_gene_network(filepath: str | Path) -> Tuple[nx.DiGraph, Dict[str, dict]]:
     """
-    Parse RegulonDB network_tf_gene.txt file.
+    Parse RegulonDB NetworkRegulatorGene.tsv file (real format).
     
-    Expected Schema (tab-separated):
-    TF_ID | TF_Name | Gene_ID | Gene_Name | Effect | Evidence | EvidenceType
+    Dynamically detects columns based on header patterns to handle
+    year-to-year variations in RegulonDB exports.
+    
+    Expected columns (flexible order):
+    - regulatorId / TF_ID
+    - regulatorName / TF_Name  
+    - regulatedId / Gene_ID
+    - regulatedName / Gene_Name
+    - function / Effect
+    - confidenceLevel / Evidence
     
     Args:
-        filepath: Path to network_tf_gene.txt
+        filepath: Path to NetworkRegulatorGene.tsv
         
     Returns:
         Tuple of:
@@ -39,193 +82,354 @@ def parse_tf_gene_network(filepath: str | Path) -> Tuple[nx.DiGraph, Dict[str, d
     graph = nx.DiGraph()
     edge_metadata = {}
     
-    # Column indices (based on spec)
-    COL_TF_ID = 0
-    COL_TF_NAME = 1
-    COL_GENE_ID = 2
-    COL_GENE_NAME = 3
-    COL_EFFECT = 4
-    COL_EVIDENCE = 5
-    COL_EVIDENCE_TYPE = 6
-    
+    # Read file and detect column structure
     with open(filepath, 'r', encoding='utf-8') as f:
-        for line_num, line in enumerate(f, 1):
-            # Skip comments and empty lines
-            line = line.strip()
-            if not line or line.startswith('#'):
-                continue
+        lines = f.readlines()
+    
+    # Find header line (starts with column numbers or contains key terms)
+    header_line = None
+    data_start_idx = 0
+    
+    for i, line in enumerate(lines):
+        line = line.strip()
+        if not line or line.startswith('##'):
+            continue
+        
+        # Look for header patterns
+        if ('regulator' in line.lower() and 'regulated' in line.lower()) or \
+           ('1)' in line and '2)' in line):
+            header_line = line
+            data_start_idx = i + 1
+            break
+    
+    if header_line is None:
+        logger.warning("Could not find header line, using default column mapping")
+        col_mapping = _get_default_network_columns()
+    else:
+        col_mapping = _detect_network_columns(header_line)
+    
+    logger.info(f"Detected network columns: {col_mapping}")
+    
+    # Parse data lines
+    for line_num, line in enumerate(lines[data_start_idx:], data_start_idx + 1):
+        line = line.strip()
+        if not line or line.startswith('#'):
+            continue
+        
+        parts = line.split('\t')
+        
+        if len(parts) < max(col_mapping.values()) + 1:
+            logger.warning(f"Line {line_num}: Insufficient columns ({len(parts)}), skipping")
+            continue
+        
+        try:
+            # Extract fields using detected column mapping
+            tf_id = parts[col_mapping['tf_id']].strip()
+            tf_name = parts[col_mapping['tf_name']].strip().lower()
+            gene_id = parts[col_mapping['gene_id']].strip()
+            gene_name = parts[col_mapping['gene_name']].strip().lower()
             
-            parts = line.split('\t')
+            # Handle optional columns
+            effect = parts[col_mapping.get('effect', -1)].strip() if col_mapping.get('effect', -1) >= 0 else "?"
+            evidence = parts[col_mapping.get('evidence', -1)].strip() if col_mapping.get('evidence', -1) >= 0 else "Unknown"
             
-            # Handle varying column counts
-            if len(parts) < 5:
-                logger.warning(f"Line {line_num}: Insufficient columns, skipping")
-                continue
+            # Normalize values
+            effect = _normalize_effect(effect)
+            evidence_level = _normalize_evidence_level(evidence)
             
-            try:
-                tf_id = parts[COL_TF_ID].strip()
-                tf_name = parts[COL_TF_NAME].strip().lower()
-                gene_id = parts[COL_GENE_ID].strip()
-                gene_name = parts[COL_GENE_NAME].strip().lower()
-                effect = parts[COL_EFFECT].strip() if len(parts) > COL_EFFECT else "?"
-                evidence = parts[COL_EVIDENCE].strip() if len(parts) > COL_EVIDENCE else ""
-                evidence_type = parts[COL_EVIDENCE_TYPE].strip() if len(parts) > COL_EVIDENCE_TYPE else "Unknown"
-                
-                # Normalize effect
-                effect = _normalize_effect(effect)
-                
-                # Normalize evidence type
-                evidence_type = _normalize_evidence_type(evidence_type)
-                
-                # Add nodes with attributes
-                graph.add_node(tf_id, name=tf_name, node_type="TF")
-                graph.add_node(gene_id, name=gene_name, node_type="Gene")
-                
-                # Add edge with attributes
-                edge_key = f"{tf_id}->{gene_id}"
-                edge_attrs = {
-                    "tf_name": tf_name,
-                    "gene_name": gene_name,
-                    "effect": effect,
-                    "evidence_raw": evidence,
-                    "evidence_type": evidence_type
-                }
-                
-                graph.add_edge(tf_id, gene_id, **edge_attrs)
-                edge_metadata[edge_key] = edge_attrs
-                
-            except Exception as e:
-                logger.warning(f"Line {line_num}: Parse error - {e}")
-                continue
+            # Add nodes with attributes
+            graph.add_node(tf_id, name=tf_name, node_type="TF", original_id=tf_id)
+            graph.add_node(gene_id, name=gene_name, node_type="Gene", original_id=gene_id)
+            
+            # Add edge with attributes
+            edge_key = f"{tf_id}->{gene_id}"
+            edge_attrs = {
+                "tf_name": tf_name,
+                "gene_name": gene_name,
+                "effect": effect,
+                "evidence_raw": evidence,
+                "evidence_type": evidence_level,
+                "original_tf_id": tf_id,
+                "original_gene_id": gene_id
+            }
+            
+            graph.add_edge(tf_id, gene_id, **edge_attrs)
+            edge_metadata[edge_key] = edge_attrs
+            
+        except Exception as e:
+            logger.warning(f"Line {line_num}: Parse error - {e}")
+            continue
     
     logger.info(f"Loaded RegulonDB network: {graph.number_of_nodes()} nodes, {graph.number_of_edges()} edges")
     return graph, edge_metadata
 
 
-def _normalize_effect(effect: str) -> str:
-    """Normalize interaction effect to standard format."""
-    effect = effect.strip()
-    if effect in ['+', 'activator', 'activation']:
-        return '+'
-    elif effect in ['-', 'repressor', 'repression']:
-        return '-'
-    elif effect in ['+-', 'dual', 'both']:
-        return '+-'
-    else:
-        return '?'
+def _detect_network_columns(header_line: str) -> Dict[str, int]:
+    """
+    Dynamically detect column indices from header line.
+    
+    Looks for patterns like:
+    - regulatorId, regulatorName, regulatedId, regulatedName, function, confidenceLevel
+    - 1)regulatorId, 2)regulatorName, etc.
+    """
+    columns = header_line.split('\t')
+    mapping = {}
+    
+    for i, col in enumerate(columns):
+        col_lower = col.lower().strip()
+        
+        # Remove numbering prefixes like "1)", "2)", etc.
+        col_clean = re.sub(r'^\d+\)\s*', '', col_lower)
+        
+        # TF identification
+        if 'regulatorid' in col_clean or 'tf_id' in col_clean:
+            mapping['tf_id'] = i
+        elif 'regulatorname' in col_clean or 'tf_name' in col_clean:
+            mapping['tf_name'] = i
+        
+        # Gene identification  
+        elif 'regulatedid' in col_clean or 'gene_id' in col_clean:
+            mapping['gene_id'] = i
+        elif 'regulatedname' in col_clean or 'gene_name' in col_clean:
+            mapping['gene_name'] = i
+        
+        # Regulation properties
+        elif 'function' in col_clean or 'effect' in col_clean:
+            mapping['effect'] = i
+        elif 'confidence' in col_clean or 'evidence' in col_clean:
+            mapping['evidence'] = i
+    
+    # Validate required columns
+    required = ['tf_id', 'tf_name', 'gene_id', 'gene_name']
+    missing = [col for col in required if col not in mapping]
+    
+    if missing:
+        logger.warning(f"Missing required columns: {missing}. Using default mapping.")
+        return _get_default_network_columns()
+    
+    return mapping
 
 
-def _normalize_evidence_type(evidence: str) -> str:
-    """Normalize evidence type to Strong/Weak/Unknown."""
-    evidence_lower = evidence.lower().strip()
-    
-    # Strong evidence indicators
-    strong_indicators = [
-        'strong', 'footprinting', 'footprint', 'dnase', 
-        'chip-seq', 'chipseq', 'crystal', 'structure',
-        'site-directed', 'mutagenesis', 'confirmed'
-    ]
-    
-    # Weak evidence indicators  
-    weak_indicators = [
-        'weak', 'gea', 'expression', 'indirect',
-        'prediction', 'computational', 'inferred'
-    ]
-    
-    for indicator in strong_indicators:
-        if indicator in evidence_lower:
-            return 'Strong'
-    
-    for indicator in weak_indicators:
-        if indicator in evidence_lower:
-            return 'Weak'
-    
-    return 'Unknown'
+def _get_default_network_columns() -> Dict[str, int]:
+    """Default column mapping for RegulonDB NetworkRegulatorGene.tsv"""
+    return {
+        'tf_id': 0,        # regulatorId
+        'tf_name': 1,      # regulatorName
+        'gene_id': 3,      # regulatedId (skip column 2: RegulatorGeneName)
+        'gene_name': 4,    # regulatedName
+        'effect': 5,       # function
+        'evidence': 6      # confidenceLevel
+    }
 
+
+# ============================================================================
+# Gene Product Mapping Parser (Real Format)
+# ============================================================================
 
 def parse_gene_product_mapping(filepath: str | Path) -> Tuple[Dict[str, str], Dict[str, str]]:
     """
-    Parse RegulonDB gene_product.txt for gene name to b-number mapping.
+    Parse RegulonDB GeneProductAllIdentifiersSet.tsv for gene name to b-number mapping.
     
-    Creates the "Rosetta Stone" dictionary for identifier resolution.
+    Extracts b-numbers from the complex otherDbsGeneIds field using regex.
     
     Args:
-        filepath: Path to gene_product.txt
+        filepath: Path to GeneProductAllIdentifiersSet.tsv
         
     Returns:
         Tuple of:
         - name_to_bnumber: Dict mapping gene names to b-numbers
         - bnumber_to_name: Dict mapping b-numbers to gene names
+        - regulondb_to_bnumber: Dict mapping RegulonDB IDs to b-numbers
     """
     filepath = Path(filepath)
     
     name_to_bnumber = {}
     bnumber_to_name = {}
+    regulondb_to_bnumber = {}
     
     if not filepath.exists():
         logger.warning(f"Gene product file not found: {filepath}. Using empty mapping.")
         return name_to_bnumber, bnumber_to_name
     
-    # Regular expression to match b-numbers (e.g., b0001, b1234)
-    bnumber_pattern = re.compile(r'\b(b\d{4})\b', re.IGNORECASE)
-    
+    # Read file and detect structure
     with open(filepath, 'r', encoding='utf-8') as f:
-        for line in f:
-            line = line.strip()
-            if not line or line.startswith('#'):
-                continue
+        lines = f.readlines()
+    
+    # Find header and detect columns
+    header_line = None
+    data_start_idx = 0
+    
+    for i, line in enumerate(lines):
+        line = line.strip()
+        if not line or line.startswith('##'):
+            continue
+        
+        if ('geneid' in line.lower() and 'genename' in line.lower()) or \
+           ('1)' in line and '2)' in line):
+            header_line = line
+            data_start_idx = i + 1
+            break
+    
+    if header_line is None:
+        logger.warning("Could not find header line in gene product file")
+        col_mapping = _get_default_gene_product_columns()
+    else:
+        col_mapping = _detect_gene_product_columns(header_line)
+    
+    logger.info(f"Detected gene product columns: {col_mapping}")
+    
+    # Parse data lines
+    for line_num, line in enumerate(lines[data_start_idx:], data_start_idx + 1):
+        line = line.strip()
+        if not line or line.startswith('#'):
+            continue
+        
+        parts = line.split('\t')
+        
+        if len(parts) < max(col_mapping.values()) + 1:
+            continue
+        
+        try:
+            # Extract basic info
+            gene_id = parts[col_mapping['gene_id']].strip()
+            gene_name = parts[col_mapping['gene_name']].strip().lower()
             
-            parts = line.split('\t')
-            if len(parts) < 2:
-                continue
-            
-            # Try to extract gene name and b-number
-            # Format varies, but typically: GeneID | GeneName | Synonyms | BNumber
-            gene_name = None
-            bnumber = None
-            
-            # Search for b-number in all columns
-            for part in parts:
-                match = bnumber_pattern.search(part)
-                if match:
-                    bnumber = match.group(1).lower()
-                    break
-            
-            # First column after ID is typically gene name
-            if len(parts) >= 2:
-                gene_name = parts[1].strip().lower()
-            
-            if gene_name and bnumber:
-                name_to_bnumber[gene_name] = bnumber
-                bnumber_to_name[bnumber] = gene_name
+            # Extract b-number from otherDbsGeneIds field
+            other_dbs_col = col_mapping.get('other_dbs', -1)
+            if other_dbs_col >= 0 and other_dbs_col < len(parts):
+                other_dbs = parts[other_dbs_col]
+                bnumber = _extract_bnumber(other_dbs)
                 
-                # Also add synonyms if present
-                if len(parts) >= 3:
-                    synonyms = parts[2].split(',')
-                    for syn in synonyms:
-                        syn = syn.strip().lower()
-                        if syn and syn not in name_to_bnumber:
-                            name_to_bnumber[syn] = bnumber
+                if bnumber and gene_name:
+                    name_to_bnumber[gene_name] = bnumber
+                    bnumber_to_name[bnumber] = gene_name
+                    regulondb_to_bnumber[gene_id] = bnumber
+                    
+                    # Also add synonyms if present
+                    synonyms_col = col_mapping.get('synonyms', -1)
+                    if synonyms_col >= 0 and synonyms_col < len(parts):
+                        synonyms_text = parts[synonyms_col]
+                        synonyms = _extract_synonyms(synonyms_text)
+                        for syn in synonyms:
+                            if syn and syn not in name_to_bnumber:
+                                name_to_bnumber[syn] = bnumber
+            
+        except Exception as e:
+            logger.debug(f"Line {line_num}: Parse error - {e}")
+            continue
     
     logger.info(f"Loaded gene mapping: {len(name_to_bnumber)} names -> {len(bnumber_to_name)} b-numbers")
-    return name_to_bnumber, bnumber_to_name
+    return name_to_bnumber, bnumber_to_name, regulondb_to_bnumber
 
+
+def _detect_gene_product_columns(header_line: str) -> Dict[str, int]:
+    """Detect column structure for gene product file."""
+    columns = header_line.split('\t')
+    mapping = {}
+    
+    for i, col in enumerate(columns):
+        col_lower = col.lower().strip()
+        col_clean = re.sub(r'^\d+\)\s*', '', col_lower)
+        
+        # Be more specific with matching to avoid conflicts
+        if col_clean == 'geneid':
+            mapping['gene_id'] = i
+        elif col_clean == 'genename':
+            mapping['gene_name'] = i
+        elif 'genesynonyms' in col_clean:
+            mapping['synonyms'] = i
+        elif 'otherdbsgeneid' in col_clean:
+            mapping['other_dbs'] = i
+        elif 'productsynonyms' in col_clean:
+            # Don't override gene synonyms with product synonyms
+            if 'synonyms' not in mapping:
+                mapping['synonyms'] = i
+    
+    return mapping
+
+
+def _get_default_gene_product_columns() -> Dict[str, int]:
+    """Default column mapping for GeneProductAllIdentifiersSet.tsv"""
+    return {
+        'gene_id': 0,      # geneId
+        'gene_name': 1,    # geneName
+        'synonyms': 5,     # geneSynonyms
+        'other_dbs': 6     # otherDbsGeneIds
+    }
+
+
+def _extract_bnumber(other_dbs_string: str) -> Optional[str]:
+    """
+    Extract b-number from complex otherDbsGeneIds string.
+    
+    Example input: "[ASKA:ECK1450+b1456+JW1451+rhsE][KEIO:ECK1450+b1456+...]"
+    Expected output: "b1456"
+    """
+    if not other_dbs_string:
+        return None
+    
+    # Look for b-number pattern: b followed by 4 digits
+    match = re.search(r'\b(b\d{4})\b', other_dbs_string, re.IGNORECASE)
+    return match.group(1).lower() if match else None
+
+
+def _extract_synonyms(synonyms_string: str) -> List[str]:
+    """Extract gene synonyms from synonyms field."""
+    if not synonyms_string:
+        return []
+    
+    # Split by common delimiters and clean
+    synonyms = re.split(r'[,;|]', synonyms_string)
+    cleaned = []
+    
+    for syn in synonyms:
+        syn = syn.strip().lower()
+        if syn and not syn.startswith('[') and len(syn) > 1:
+            cleaned.append(syn)
+    
+    return cleaned
+
+
+# ============================================================================
+# Normalization Functions
+# ============================================================================
+
+def _normalize_effect(effect: str) -> str:
+    """Normalize interaction effect to standard format."""
+    effect_clean = effect.strip().lower()
+    return INTERACTION_EFFECT_MAP.get(effect_clean, effect_clean)
+
+
+def _normalize_evidence_level(evidence: str) -> str:
+    """Normalize evidence level to standard format."""
+    evidence_clean = evidence.strip()
+    
+    # Try direct mapping first
+    if evidence_clean in EVIDENCE_LEVEL_MAP:
+        return EVIDENCE_LEVEL_MAP[evidence_clean]
+    
+    # Try lowercase mapping
+    evidence_lower = evidence_clean.lower()
+    if evidence_lower in EVIDENCE_LEVEL_MAP:
+        return EVIDENCE_LEVEL_MAP[evidence_lower]
+    
+    # Fallback pattern matching
+    if 'strong' in evidence_lower or 's' == evidence_lower:
+        return 'Strong'
+    elif 'weak' in evidence_lower or 'w' == evidence_lower:
+        return 'Weak'
+    elif 'confirm' in evidence_lower or 'c' == evidence_lower:
+        return 'Confirmed'
+    else:
+        return 'Unknown'
+
+
+# ============================================================================
+# M3D Parsers (Unchanged)
+# ============================================================================
 
 def parse_m3d_expression(filepath: str | Path) -> pd.DataFrame:
-    """
-    Parse M3D expression matrix file (E_coli_v4_Build_6_exps.tab).
-    
-    The matrix has:
-    - Row headers: Probe Set ID or Gene Symbol (b-numbers)
-    - Column headers: Experiment IDs
-    - Values: Log2-transformed RMA-normalized expression values
-    
-    Args:
-        filepath: Path to expression matrix file
-        
-    Returns:
-        DataFrame with genes as rows (index) and experiments as columns
-    """
+    """Parse M3D expression matrix file (unchanged from original)."""
     filepath = Path(filepath)
     
     if not filepath.exists():
@@ -267,22 +471,7 @@ def parse_m3d_expression(filepath: str | Path) -> pd.DataFrame:
 
 
 def parse_m3d_metadata(filepath: str | Path) -> pd.DataFrame:
-    """
-    Parse M3D experimental metadata file (E_coli_v4_Build_6_meta.tab).
-    
-    Expected columns:
-    - Experiment_ID: Unique ID matching expression matrix columns
-    - Condition_Name: Human-readable description
-    - Perturbation: Variable changed (Chemical, Gene knockout, etc.)
-    - Concentration/Value: Numerical value
-    - Time_Point: Time since perturbation
-    
-    Args:
-        filepath: Path to metadata file
-        
-    Returns:
-        DataFrame with experiments as rows (index) and metadata as columns
-    """
+    """Parse M3D experimental metadata file (unchanged from original)."""
     filepath = Path(filepath)
     
     if not filepath.exists():
@@ -315,29 +504,17 @@ def parse_m3d_metadata(filepath: str | Path) -> pd.DataFrame:
     return df
 
 
+# ============================================================================
+# Synthetic Data Generator (For Testing)
+# ============================================================================
+
 def create_synthetic_test_data(
     n_genes: int = 100,
     n_experiments: int = 50,
     n_tfs: int = 10,
     output_dir: str | Path = "test_data"
 ) -> Dict[str, Path]:
-    """
-    Create synthetic test data for development and testing.
-    
-    Generates:
-    - Synthetic TF-Gene network
-    - Synthetic expression matrix with embedded regulatory signals
-    - Synthetic metadata
-    
-    Args:
-        n_genes: Number of genes
-        n_experiments: Number of experiments
-        n_tfs: Number of transcription factors
-        output_dir: Directory to save test files
-        
-    Returns:
-        Dictionary mapping file types to paths
-    """
+    """Create synthetic test data matching real RegulonDB format."""
     import numpy as np
     
     output_dir = Path(output_dir)
@@ -347,42 +524,80 @@ def create_synthetic_test_data(
     all_genes = [f"b{i:04d}" for i in range(1, n_genes + 1)]
     tfs = all_genes[:n_tfs]
     
-    # --- Create network_tf_gene.txt ---
-    network_lines = ["# TF_ID\tTF_Name\tGene_ID\tGene_Name\tEffect\tEvidence\tEvidenceType"]
+    # --- Create NetworkRegulatorGene.tsv (Real format) ---
+    network_lines = [
+        "## Network Regulatory Interactions in Escherichia coli K-12 substr. MG1655",
+        "## Columns:",
+        "## (1) regulatorId. Regulator identifier", 
+        "## (2) regulatorName. Regulator Name",
+        "## (3) RegulatorGeneName. Gene(s) coding for the TF",
+        "## (4) regulatedId. Gene ID regulated by the Regulator",
+        "## (5) regulatedName. Gene regulated by the Regulator", 
+        "## (6) function. Regulatory Function (+/-/+-/?)",
+        "## (7) confidenceLevel. Evidence level (C/S/W/?)",
+        "1)regulatorId\t2)regulatorName\t3)RegulatorGeneName\t4)regulatedId\t5)regulatedName\t6)function\t7)confidenceLevel"
+    ]
     
     np.random.seed(42)
     targets_per_tf = {}
     
     for i, tf in enumerate(tfs):
         tf_name = f"tf{i+1}"
+        tf_gene_name = f"gene{i+1}"
+        
         # Each TF regulates 5-15 genes
         n_targets = np.random.randint(5, 16)
         targets = np.random.choice([g for g in all_genes if g != tf], n_targets, replace=False)
         targets_per_tf[tf] = list(targets)
         
-        for j, target in enumerate(targets):
+        for target in targets:
             target_name = f"gene{int(target[1:])}"
             effect = np.random.choice(['+', '-', '+-'], p=[0.4, 0.4, 0.2])
-            evidence_type = np.random.choice(['Strong', 'Weak'], p=[0.6, 0.4])
+            evidence_type = np.random.choice(['S', 'W'], p=[0.6, 0.4])
             
-            # Use b-numbers directly as IDs for consistency with expression matrix
+            # Create RegulonDB-style IDs
+            tf_id = f"RDBECOLICNC{i:05d}"
+            target_id = f"RDBECOLIGNC{int(target[1:]):05d}"
+            
             network_lines.append(
-                f"{tf}\t{tf_name}\t{target}\t{target_name}\t{effect}\t\t{evidence_type}"
+                f"{tf_id}\t{tf_name}\t{tf_gene_name}\t{target_id}\t{target_name}\t{effect}\t{evidence_type}"
             )
     
-    network_path = output_dir / "network_tf_gene.txt"
+    network_path = output_dir / "NetworkRegulatorGene.tsv"
     with open(network_path, 'w') as f:
         f.write('\n'.join(network_lines))
     
-    # --- Create gene_product.txt ---
-    gene_product_lines = ["# GeneID\tGeneName\tSynonyms\tBNumber"]
+    # --- Create GeneProductAllIdentifiersSet.tsv (Real format) ---
+    gene_product_lines = [
+        "## Gene and Gene Product information for Escherichia coli K-12 substr. MG1655",
+        "## Columns:",
+        "## (1) Gene identifier assigned by RegulonDB",
+        "## (2) Gene name", 
+        "## (3) Gene left end position in the genome",
+        "## (4) Gene right end position in the genome",
+        "## (5) DNA strand where the gene is coded",
+        "## (6) other gene synonyms",
+        "## (7) Other database's id related to gene",
+        "## (8) Product identifier of the gene",
+        "## (9) Product name of the gene",
+        "## (10) Other products synonyms", 
+        "## (11) Other database's id related to product",
+        "1)geneId\t2)geneName\t3)leftEndPos\t4)rightEndPos\t5)strand\t6)geneSynonyms\t7)otherDbsGeneIds\t8)productId\t9)productName\t10)productSynonyms\t11)otherDbsProductsIds"
+    ]
+    
     for gene in all_genes:
         gene_num = int(gene[1:])
         name = f"gene{gene_num}"
-        # Use b-number as primary ID for consistency
-        gene_product_lines.append(f"{gene}\t{name}\t\t{gene}")
+        gene_id = f"RDBECOLIGNC{gene_num:05d}"
+        
+        # Create realistic otherDbsGeneIds with b-number embedded
+        other_dbs = f"[ASKA:ECK{gene_num:04d}+{gene}+JW{gene_num:04d}+{name}][KEIO:ECK{gene_num:04d}+{gene}+JW{gene_num:04d}+{name}]"
+        
+        gene_product_lines.append(
+            f"{gene_id}\t{name}\t{gene_num*1000}\t{gene_num*1000+500}\tforward\t{name}5,EG{gene_num:05d}\t{other_dbs}\tRDBECOLIPDC{gene_num:05d}\tprotein {name}\t\t"
+        )
     
-    gene_product_path = output_dir / "gene_product.txt"
+    gene_product_path = output_dir / "GeneProductAllIdentifiersSet.tsv"
     with open(gene_product_path, 'w') as f:
         f.write('\n'.join(gene_product_lines))
     
@@ -399,7 +614,7 @@ def create_synthetic_test_data(
         
         for target in targets_per_tf.get(tf, []):
             target_idx = all_genes.index(target)
-            # Add correlated signal (positive correlation = activation)
+            # Add correlated signal
             correlation_strength = np.random.uniform(0.4, 0.8)
             noise = np.random.normal(0, 0.5, n_experiments)
             expression_data[target_idx, :] += correlation_strength * (tf_expr - np.mean(tf_expr)) + noise
@@ -443,4 +658,3 @@ def create_synthetic_test_data(
         "expression": expression_path,
         "metadata": metadata_path
     }
-
