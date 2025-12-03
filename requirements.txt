@@ -1,0 +1,39 @@
+# DREAMing Agent - Agentic Reconciliation System
+# Gene Regulatory Network Analysis using LangGraph
+
+# Core Framework
+langgraph>=0.2.0
+langchain>=0.3.0
+
+# LLM Integration (Google Gemini)
+google-genai>=1.0.0
+
+# Data Processing
+pandas>=2.0.0
+numpy>=1.24.0
+networkx>=3.1
+
+# Statistical Analysis
+scikit-learn>=1.3.0
+scipy>=1.11.0
+
+# Mutual Information Estimation
+sklearn-features>=0.0.2
+
+# File I/O
+openpyxl>=3.1.0  # For Excel support if needed
+
+# Visualization (optional)
+matplotlib>=3.7.0
+seaborn>=0.12.0
+
+# Type checking
+pydantic>=2.0.0
+
+# Progress bars
+tqdm>=4.65.0
+
+# Logging
+loguru>=0.7.0
+
+
