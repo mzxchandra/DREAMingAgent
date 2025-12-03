@@ -1,0 +1,7 @@
+AgentVenv/*
+dataFormat.md
+langgraphArchitecture.md
+__pycache__/
+.pytest_cache/
+logs/
+output/
