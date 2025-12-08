@@ -50,9 +50,13 @@ This system bridges these worlds using a **LangGraph cyclic workflow** with **LL
 | **Analysis Agent** | ❌ | Computes Mutual Information & CLR z-scores (deterministic statistics) |
 | **Reconciler** | ✅ | Reasons about literature vs data discrepancies with biological insight |
 
----
+```python
+# From Batch Manager
+batch__current_tfs: List[str]  # TFs to process (e.g., ["b1334"])
 
-## Project Structure
+# From Research Agent
+research__literature_edges: Dict[str, Dict[str, Dict]]
+# Structure: {tf_bnumber: {target_bnumber: {exists, effect, evidence_strength, ...}}}
 
 ```
 DREAMingAgent/
@@ -80,7 +84,9 @@ DREAMingAgent/
     └── test_analysis_agent.py  # Unit tests
 ```
 
----
+# From Analysis Agent
+analysis__statistical_results: Dict[str, Dict[str, Dict]]
+# Structure: {tf_bnumber: {target_bnumber: {clr_zscore, mi, correlation, pvalue}}}
 
 ## Installation
 
@@ -120,7 +126,7 @@ export GEMINI_API_KEY="your-key"
 python main.py --synthetic --output output/
 ```
 
-### With Real Data
+### Test Coverage
 
 ```bash
 python main.py \
