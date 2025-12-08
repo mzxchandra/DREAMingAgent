@@ -28,15 +28,15 @@ class LoaderConfig:
         self,
         regulondb_network_path: str | Path,
         regulondb_gene_product_path: str | Path,
-        m3d_expression_path: str | Path,
-        m3d_metadata_path: str | Path,
+        m3d_expression_path: Optional[str | Path] = None,
+        m3d_metadata_path: Optional[str | Path] = None,
         use_synthetic: bool = False,
         synthetic_output_dir: str | Path = "test_data"
     ):
         self.regulondb_network_path = Path(regulondb_network_path)
         self.regulondb_gene_product_path = Path(regulondb_gene_product_path)
-        self.m3d_expression_path = Path(m3d_expression_path)
-        self.m3d_metadata_path = Path(m3d_metadata_path)
+        self.m3d_expression_path = Path(m3d_expression_path) if m3d_expression_path else None
+        self.m3d_metadata_path = Path(m3d_metadata_path) if m3d_metadata_path else None
         self.use_synthetic = use_synthetic
         self.synthetic_output_dir = Path(synthetic_output_dir)
 
@@ -100,7 +100,7 @@ def loader_node(state: AgentState) -> Dict[str, Any]:
     # --- 1. Load Gene Product Mapping (Rosetta Stone) ---
     logger.info("Loading gene name to b-number mapping...")
     try:
-        gene_name_to_bnumber, bnumber_to_gene_name = parse_gene_product_mapping(
+        gene_name_to_bnumber, bnumber_to_gene_name, _ = parse_gene_product_mapping(
             regulondb_gene_product_path
         )
     except Exception as e:
@@ -130,34 +130,42 @@ def loader_node(state: AgentState) -> Dict[str, Any]:
         errors.append(f"RegulonDB network: {e}")
     
     # --- 3. Load M3D Expression Matrix ---
-    logger.info("Loading M3D expression matrix...")
-    try:
-        expression_matrix = parse_m3d_expression(m3d_expression_path)
-        
-        # Ensure index uses b-numbers
-        expression_matrix = _normalize_expression_index(
-            expression_matrix,
-            gene_name_to_bnumber
-        )
-        
-        logger.info(
-            f"Expression matrix: {expression_matrix.shape[0]} genes x "
-            f"{expression_matrix.shape[1]} experiments"
-        )
-    except Exception as e:
-        logger.error(f"Failed to load M3D expression matrix: {e}")
+    if m3d_expression_path:
+        logger.info("Loading M3D expression matrix...")
+        try:
+            expression_matrix = parse_m3d_expression(m3d_expression_path)
+            
+            # Ensure index uses b-numbers
+            expression_matrix = _normalize_expression_index(
+                expression_matrix,
+                gene_name_to_bnumber
+            )
+            
+            logger.info(
+                f"Expression matrix: {expression_matrix.shape[0]} genes x "
+                f"{expression_matrix.shape[1]} experiments"
+            )
+        except Exception as e:
+            logger.error(f"Failed to load M3D expression matrix: {e}")
+            expression_matrix = pd.DataFrame()
+            errors.append(f"M3D expression: {e}")
+    else:
+        logger.info("No M3D expression path provided, skipping...")
         expression_matrix = pd.DataFrame()
-        errors.append(f"M3D expression: {e}")
     
     # --- 4. Load M3D Metadata ---
-    logger.info("Loading M3D experimental metadata...")
-    try:
-        metadata = parse_m3d_metadata(m3d_metadata_path)
-        logger.info(f"Metadata: {len(metadata)} experiments")
-    except Exception as e:
-        logger.error(f"Failed to load M3D metadata: {e}")
+    if m3d_metadata_path:
+        logger.info("Loading M3D experimental metadata...")
+        try:
+            metadata = parse_m3d_metadata(m3d_metadata_path)
+            logger.info(f"Metadata: {len(metadata)} experiments")
+        except Exception as e:
+            logger.error(f"Failed to load M3D metadata: {e}")
+            metadata = pd.DataFrame()
+            errors.append(f"M3D metadata: {e}")
+    else:
+        logger.info("No M3D metadata path provided, skipping...")
         metadata = pd.DataFrame()
-        errors.append(f"M3D metadata: {e}")
     
     # --- 5. Initialize TF Queue ---
     # Extract all TFs from the literature graph

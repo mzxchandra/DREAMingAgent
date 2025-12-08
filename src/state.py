@@ -30,6 +30,10 @@ ReconciliationStatus = Literal[
 # Data Classes for Structured Results
 # ============================================================================
 
+
+DataSignificance = Literal["High", "Moderate", "Low", "Insignificant"]
+
+
 @dataclass
 class EdgeAnalysis:
     """Statistical analysis result for a single TF->Gene edge."""
@@ -38,7 +42,7 @@ class EdgeAnalysis:
     mutual_information: float
     z_score: float
     p_value: Optional[float] = None
-    significance: Literal["High", "Moderate", "Low", "Insignificant"] = "Insignificant"
+    significance: DataSignificance = "Insignificant"
     sample_count: int = 0
     
     def to_dict(self) -> Dict[str, Any]:
@@ -51,6 +55,25 @@ class EdgeAnalysis:
             "significance": self.significance,
             "sample_count": self.sample_count
         }
+
+
+@dataclass
+class ContextAnnotation:
+    """Context annotation for a specific condition match."""
+    condition_match: str  # 'match', 'mismatch', 'partial', 'unknown'
+    required_conditions: List[str]
+    dataset_conditions: List[str]
+    explanation: str
+    confidence: float
+
+
+@dataclass
+class EdgeDecision:
+    """Decision made by the reviewer agent."""
+    decision: ReconciliationStatus
+    reasoning: str
+    confidence: float
+    context: Optional[ContextAnnotation] = None
 
 
 @dataclass 

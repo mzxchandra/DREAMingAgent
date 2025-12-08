@@ -4,7 +4,7 @@ Reconciler Node: The AI Reasoning Engine
 Compares literature assertions (RegulonDB) with statistical evidence (M3D)
 to validate, contradict, or discover regulatory interactions.
 
-Uses LLM (Google Gemini) for nuanced biological reasoning when available,
+Uses LLM (ALCF/Argonne) for nuanced biological reasoning when available,
 with fallback to rule-based decisions.
 
 This is where biology meets AI.
@@ -21,7 +21,7 @@ from ..state import (
     EvidenceLevel,
     InteractionEffect
 )
-from ..llm.client import generate_response, generate_structured_response
+from ..llm_config import create_argonne_llm
 from ..llm.prompts import (
     RECONCILER_SYSTEM_PROMPT,
     format_reconciliation_prompt,

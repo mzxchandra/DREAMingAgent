@@ -13,31 +13,37 @@ The transcriptional regulatory network of *E. coli* K-12 is the most well-charac
 - **Literature Prior** (RegulonDB): Curated assertions from decades of molecular biology
 - **Data Landscape** (M3D): High-throughput expression measurements across 1000+ conditions
 
-This system bridges these worlds using a **LangGraph cyclic workflow** with **LLM-powered reasoning** (Google Gemini) for nuanced biological interpretation.
+This system bridges these worlds using a **LangGraph cyclic workflow** with **LLM-powered reasoning** (ALCF/Argonne) for nuanced biological interpretation.
 
 ---
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                      LangGraph Workflow                          │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                  │
-│   ┌──────────┐    ┌─────────────┐    ┌────────────────┐         │
-│   │  Loader  │───▶│Batch Manager│───▶│ Context Agent  │         │
-│   │(ingest)  │    │  (queue)    │    │  (🤖 LLM)      │         │
-│   └──────────┘    └─────────────┘    └───────┬────────┘         │
-│                          ▲                    │                  │
-│                          │                    ▼                  │
-│                   ┌──────┴──────┐    ┌────────────────┐         │
-│                   │  Reconciler │◀───│ Analysis Agent │         │
-│                   │  (🤖 LLM)   │    │   (CLR/MI)     │         │
-│                   └─────────────┘    └────────────────┘         │
-│                          │                                       │
-│                          ▼                                       │
-│                       [END]                                      │
-└─────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│                        LangGraph Workflow                             │
+├──────────────────────────────────────────────────────────────────────┤
+│                                                                       │
+│   ┌──────────┐    ┌─────────────┐    ┌─────────────────┐            │
+│   │  Loader  │───▶│Batch Manager│───▶│Research Agent   │            │
+│   │(ingest)  │    │  (queue)    │    │ (🤖 RAG/Vector) │            │
+│   └──────────┘    └─────────────┘    └────────┬────────┘            │
+│                          ▲                     │                     │
+│                          │                     ▼                     │
+│                          │            ┌────────────────┐             │
+│                          │            │Analysis Agent  │             │
+│                          │            │   (CLR/MI)     │             │
+│                          │            └────────┬───────┘             │
+│                          │                     │                     │
+│                          │                     ▼                     │
+│                          │            ┌────────────────┐             │
+│                          └────────────│  Reviewer      │             │
+│                                       │  (🤖 LLM)      │             │
+│                                       └────────────────┘             │
+│                                               │                      │
+│                                               ▼                      │
+│                                            [END]                     │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Node Responsibilities
@@ -46,9 +52,9 @@ This system bridges these worlds using a **LangGraph cyclic workflow** with **LL
 |------|-----|-------------|
 | **Loader** | ❌ | Ingests RegulonDB network, gene mappings, M3D expression matrix & metadata |
 | **Batch Manager** | ❌ | Manages TF processing queue, prevents memory overflow |
-| **Context Agent** | ✅ | Intelligently filters M3D samples based on TF biological function |
+| **Research Agent** | ✅ | Retrieves literature context from vector store using RAG (BAAI/bge-small-en-v1.5 embeddings), performs condition matching between dataset and literature |
 | **Analysis Agent** | ❌ | Computes Mutual Information & CLR z-scores (deterministic statistics) |
-| **Reconciler** | ✅ | Reasons about literature vs data discrepancies with biological insight |
+| **Reviewer** | ✅ | Integrates RegulonDB, Research Agent context, and statistical evidence to classify edges into 4 categories using ALCF LLMs |
 
 ```python
 # From Batch Manager
@@ -103,13 +109,9 @@ source AgentVenv/bin/activate  # On Windows: AgentVenv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-### For LLM Features (Optional)
+### For LLM Features
 
-```bash
-export GEMINI_API_KEY="your-api-key-here"
-```
-
-Get your API key from [Google AI Studio](https://aistudio.google.com/app/apikey).
+The system uses ALCF (Argonne Leadership Computing Facility) for LLM-powered reasoning. Configure access to the ALCF API according to your institution's setup.
 
 ---
 
@@ -121,8 +123,7 @@ Get your API key from [Google AI Studio](https://aistudio.google.com/app/apikey)
 # Without LLM (rule-based reasoning)
 python main.py --synthetic --no-llm --output output/
 
-# With LLM (AI-powered reasoning)
-export GEMINI_API_KEY="your-key"
+# With LLM (AI-powered reasoning via ALCF)
 python main.py --synthetic --output output/
 ```
 
@@ -143,7 +144,7 @@ python main.py \
 |------|-------------|
 | `--synthetic`, `-s` | Run with generated test data |
 | `--no-llm` | Disable LLM reasoning (use rule-based fallbacks) |
-| `--llm-model MODEL` | LLM model to use (default: `gemini-2.5-flash`) |
+| `--llm-model MODEL` | LLM model to use (default: `argonne-llama3`) |
 | `--output`, `-o` | Output directory (default: `output/`) |
 | `--verbose`, `-v` | Enable debug logging |
 | `--max-iterations` | Max processing iterations (default: 100) |
@@ -266,38 +267,30 @@ Environment variables:
 
 | Variable | Description |
 |----------|-------------|
-| `GEMINI_API_KEY` | Google Gemini API key for LLM features |
 | `DREAMING_USE_LLM` | Enable/disable LLM (`true`/`false`) |
-| `DREAMING_LLM_MODEL` | Model name (default: `gemini-2.5-flash`) |
+| `DREAMING_LLM_MODEL` | Model name (default: `argonne-llama3`) |
 
 ---
 
 ## Extending the System
 
-### Adding New TF Context Knowledge
+### Custom Review Thresholds
 
-Edit `src/nodes/context_agent.py`:
-
-```python
-TF_CONDITION_MAP = {
-    "your_tf": ["relevant", "condition", "keywords"],
-    ...
-}
-```
-
-### Custom Reconciliation Rules
-
-Edit thresholds in `src/nodes/reconciler.py`:
+Edit CLR z-score thresholds in [src/nodes/reviewer_agent.py](src/nodes/reviewer_agent.py):
 
 ```python
-HIGH_DATA_SUPPORT = 4.0      # z-score threshold
-MODERATE_DATA_SUPPORT = 2.0
-LOW_DATA_SUPPORT = 1.0
+HIGH_DATA = 4.0      # Strong data support threshold
+MODERATE_DATA = 2.0  # Moderate data support threshold
+LOW_DATA = 1.0       # Low data support threshold
 ```
 
-### Adding New LLM Prompts
+### Adding Literature to Vector Store
 
-Edit `src/llm/prompts.py` to customize AI reasoning behavior.
+The Research Agent uses a vector store for literature retrieval. To add new literature:
+
+1. Add documents to the vector store via [src/utils/vector_store.py](src/utils/vector_store.py)
+2. Documents are embedded using BAAI/bge-small-en-v1.5
+3. Include metadata with experimental conditions for better context matching
 
 ---
 

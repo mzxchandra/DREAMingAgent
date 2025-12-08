@@ -3,15 +3,20 @@ Reviewer Agent: Synthesizes statistical evidence with biological literature
 to produce context-aware gene regulatory network annotations.
 
 Hybrid LLM + rule-based decision system with graceful fallback.
+Integrates with vector store for literature context on each edge.
 """
 
-from typing import Dict, List, Any, Tuple
-from langchain_core.messages import AIMessage
+from typing import Dict, List, Any, Tuple, Optional
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
 from pydantic import BaseModel, Field
-from src.state import AgentState
-from src.llm_config import create_argonne_llm
+from loguru import logger
+import networkx as nx
+
+from ..state import AgentState
+from ..llm_config import create_argonne_llm
+from ..utils.vector_store import get_vector_store
+from ..llm.alcf_client import get_alcf_client
 
 
 class EdgeDecisionOutput(BaseModel):
@@ -38,58 +43,147 @@ def reviewer_agent_node(state: AgentState) -> Dict[str, Any]:
     """
     Main node: Processes one TF subgraph (TF + all targets) per invocation.
     LLM primary with rule-based fallback on error.
+
+    Integrates vector store lookup to get literature context for each edge before reconciliation.
+
+    Args:
+        state: AgentState with current_batch_tfs and analysis_results
+
+    Returns:
+        Updated state with reconciliation_log, novel_hypotheses, false_positive_candidates
     """
-    messages = state["messages"]
-    current_tfs = state.get("batch__current_tfs", [])
+    logger.info("=== REVIEWER AGENT NODE: Literature-Informed Reconciliation ===")
+
+    current_tfs = state.get("current_batch_tfs", [])
 
     if not current_tfs:
+        logger.warning("No TFs to process in reviewer")
         return {
-            "messages": messages + [AIMessage(content="Reviewer: No TFs to process")],
-            "reviewer__edge_decisions": []
+            "reconciliation_log": state.get("reconciliation_log", []),
+            "novel_hypotheses": state.get("novel_hypotheses", []),
+            "false_positive_candidates": state.get("false_positive_candidates", [])
         }
 
     tf_bnumber = current_tfs[0]
     edges_data = prepare_subgraph_data(state, tf_bnumber)
 
     if not edges_data:
+        logger.warning(f"No edges found for TF {tf_bnumber}")
         return {
-            "messages": messages + [AIMessage(content=f"Reviewer: No edges found for TF {tf_bnumber}")],
-            "reviewer__edge_decisions": []
+            "reconciliation_log": state.get("reconciliation_log", []),
+            "novel_hypotheses": state.get("novel_hypotheses", []),
+            "false_positive_candidates": state.get("false_positive_candidates", [])
         }
 
-    try:
-        review_result = invoke_llm_reviewer(edges_data, tf_bnumber, state)
-        method = "llm"
-    except Exception as e:
-        print(f"LLM failed ({e}), using rule-based fallback")
+    logger.info(f"Reviewing {len(edges_data)} edges for TF {tf_bnumber}")
+
+    from ..config import get_config
+    config = get_config()
+    
+    use_llm = config.use_llm and config.use_llm_reconciler
+    
+    if use_llm:
+        try:
+            review_result = invoke_llm_reviewer(edges_data, tf_bnumber, state)
+            method = "llm"
+        except Exception as e:
+            logger.warning(f"LLM failed ({e}), using rule-based fallback")
+            review_result = apply_rule_based_review(edges_data, tf_bnumber, state)
+            method = "rules"
+    else:
+        logger.info("LLM disabled, using rule-based review")
         review_result = apply_rule_based_review(edges_data, tf_bnumber, state)
         method = "rules"
 
-    return post_process_decisions(review_result, state, tf_bnumber, method, messages)
+    return post_process_decisions(review_result, state, tf_bnumber, method)
 
 
 def prepare_subgraph_data(state: AgentState, tf_bnumber: str) -> List[Dict[str, Any]]:
-    """Combines literature, statistics, and context for all edges of one TF."""
+    """
+    Combines literature, statistics, and context for all edges of one TF.
+    Uses vector store for literature context retrieval.
+    """
     edges = []
 
-    lit_edges = state.get("research__literature_edges", {}).get(tf_bnumber, {})
-    stat_results = state.get("analysis__statistical_results", {}).get(tf_bnumber, {})
+    # Get data from state
+    literature_graph = state.get("literature_graph", nx.DiGraph())
+    analysis_results = state.get("analysis_results", {})
+    metadata_df = state.get("metadata", None)
+    bnumber_to_name = state.get("bnumber_to_gene_name", {})
 
-    all_targets = set(lit_edges.keys()) | set(stat_results.keys())
+    # Get stats for this TF
+    tf_stats = analysis_results.get(tf_bnumber, {})
+
+    # Get literature targets for this TF
+    lit_targets = set()
+    if literature_graph.has_node(tf_bnumber):
+        lit_targets = {target for _, target in literature_graph.out_edges(tf_bnumber)}
+
+    # Get statistical targets (genes with high correlation)
+    stat_targets = set()
+    if isinstance(tf_stats, dict):
+        stat_targets = {gene for gene in tf_stats.keys() if not gene.startswith("_")}
+
+    # All targets to consider
+    all_targets = lit_targets | stat_targets
+
+    logger.info(f"TF {tf_bnumber}: {len(lit_targets)} lit targets, {len(stat_targets)} stat targets, {len(all_targets)} total")
+
+    # Get dataset metadata for research agent
+    dataset_conditions = []
+    if metadata_df is not None and not metadata_df.empty:
+        # Extract common conditions from metadata
+        dataset_conditions = extract_dataset_conditions(metadata_df)
+
+    # Initialize vector store for literature lookup
+    try:
+        vector_store = get_vector_store()
+        vector_store_available = True
+    except Exception as e:
+        logger.warning(f"Vector store unavailable: {e}")
+        vector_store_available = False
 
     for target_bnumber in all_targets:
         edge_id = f"{tf_bnumber}→{target_bnumber}"
 
-        lit_data = lit_edges.get(target_bnumber, {"exists": False})
-        stat_data = stat_results.get(target_bnumber, {
-            "clr_zscore": 0.0,
-            "mi": 0.0,
-            "correlation": 0.0
-        })
-        context_data = state.get("research__annotations", {}).get(edge_id, {
-            "match": False,
-            "explanation": "No context information available"
-        })
+        # Get literature data from RegulonDB graph
+        lit_data = {"exists": False}
+        if literature_graph.has_edge(tf_bnumber, target_bnumber):
+            lit_attrs = literature_graph[tf_bnumber][target_bnumber]
+            lit_data = {
+                "exists": True,
+                "effect": lit_attrs.get("effect", "?"),
+                "evidence_strength": lit_attrs.get("evidence_type", "unknown").lower(),
+                "conditions_required": []  # Will be populated from vector store
+            }
+
+        # Get statistical data
+        stat_data = tf_stats.get(target_bnumber)
+        if not isinstance(stat_data, dict):
+            stat_data = {
+                "clr_zscore": 0.0, 
+                "mi": 0.0, 
+                "correlation": 0.0, 
+                "status": str(stat_data)
+            }
+
+        # Get literature context from vector store
+        if vector_store_available:
+            context_data = get_literature_context(
+                vector_store,
+                tf_bnumber,
+                target_bnumber,
+                dataset_conditions,
+                bnumber_to_name
+            )
+        else:
+            context_data = {
+                "match": False,
+                "explanation": "Vector store unavailable - using RegulonDB data only",
+                "required_conditions": [],
+                "context_found": lit_data["exists"],
+                "confidence": 0.5 if lit_data["exists"] else 0.0
+            }
 
         edges.append({
             "edge_id": edge_id,
@@ -101,6 +195,107 @@ def prepare_subgraph_data(state: AgentState, tf_bnumber: str) -> List[Dict[str, 
         })
 
     return edges
+
+
+def extract_dataset_conditions(metadata_df) -> List[str]:
+    """Extract common experimental conditions from metadata."""
+    conditions = []
+
+    # Try common metadata column patterns
+    condition_columns = ["condition", "treatment", "media", "temperature", "oxygen"]
+
+    for col in metadata_df.columns:
+        col_lower = col.lower()
+        if any(cond in col_lower for cond in condition_columns):
+            # Get unique values
+            unique_vals = metadata_df[col].dropna().unique()
+            conditions.extend([str(v) for v in unique_vals[:5]])  # Limit to 5 per column
+
+    # Default if no conditions found
+    if not conditions:
+        conditions = ["standard_growth", "LB_media", "aerobic"]
+
+    return conditions[:10]  # Limit total conditions
+
+
+def get_literature_context(
+    vector_store,
+    tf_bnumber: str,
+    target_bnumber: str,
+    dataset_conditions: List[str],
+    bnumber_to_name: Dict[str, str]
+) -> Dict[str, Any]:
+    """
+    Query vector store for literature context about a TF->gene edge.
+
+    Returns context with condition matching information.
+    """
+    tf_name = bnumber_to_name.get(tf_bnumber, tf_bnumber)
+    target_name = bnumber_to_name.get(target_bnumber, target_bnumber)
+
+    try:
+        # Query vector store for documents about this gene pair
+        documents = vector_store.query_by_gene_pair(
+            gene_a=tf_name,
+            gene_b=target_name,
+            n_results=3
+        )
+
+        if not documents:
+            return {
+                "match": False,
+                "explanation": f"No literature found for {tf_name} -> {target_name}",
+                "required_conditions": [],
+                "context_found": False,
+                "confidence": 0.0
+            }
+
+        # Extract conditions from documents
+        required_conditions = []
+        for doc in documents:
+            if hasattr(doc, 'metadata') and doc.metadata:
+                doc_conditions = doc.metadata.get('conditions', [])
+                required_conditions.extend(doc_conditions)
+
+        required_conditions = list(set(required_conditions))  # Deduplicate
+
+        # Simple condition matching
+        if not required_conditions:
+            condition_match = "unknown"
+            explanation = f"Literature found for {tf_name} -> {target_name} but no specific conditions documented."
+        else:
+            # Check overlap
+            dataset_set = {c.lower() for c in dataset_conditions}
+            required_set = {c.lower() for c in required_conditions}
+            overlap = dataset_set & required_set
+
+            if len(overlap) >= len(required_set) * 0.7:  # 70% match
+                condition_match = "match"
+                explanation = f"Dataset conditions match literature requirements. Overlapping conditions: {', '.join(overlap)}"
+            elif len(overlap) > 0:
+                condition_match = "partial"
+                explanation = f"Partial match: dataset has {', '.join(overlap)} but literature requires {', '.join(required_set - dataset_set)}"
+            else:
+                condition_match = "mismatch"
+                explanation = f"Condition mismatch: literature requires {', '.join(required_conditions)} but dataset has {', '.join(dataset_conditions[:3])}"
+
+        return {
+            "match": condition_match in ["match", "partial"],
+            "explanation": explanation,
+            "required_conditions": required_conditions,
+            "context_found": True,
+            "confidence": min(documents[0].similarity_score, 1.0) if documents else 0.0
+        }
+
+    except Exception as e:
+        logger.warning(f"Vector store query failed for {tf_name}->{target_name}: {e}")
+        return {
+            "match": False,
+            "explanation": f"Literature lookup error: {str(e)}",
+            "required_conditions": [],
+            "context_found": False,
+            "confidence": 0.0
+        }
 
 
 def format_edge_data_for_llm(edges: List[Dict]) -> str:
@@ -160,13 +355,11 @@ Core Principles:
 4. Preserve edges with annotations rather than delete
 5. Every decision needs scientific justification
 
-Decision Rules:
-- Validated: Strong lit + Strong data (CLR>3) + Context match
-- Active: Any lit + Strong data (CLR>3) + Context mismatch
-- Condition-Silent: Strong lit + Weak data (CLR<2) + Context MISMATCH
-- Novel Hypothesis: No/weak lit + Strong data (CLR>3)
-- Probable False Positive: Weak lit + No data (CLR<1) + Context MATCHES
-- Unsupported: No lit + No data
+Decision Rules (4-Category System):
+- Validated: Strong lit + Strong data (CLR>4.0)
+- ConditionSilent: Strong lit + Weak data (CLR<2.0) - true interaction but inactive in dataset conditions
+- ProbableFalsePos: Weak lit + No data (CLR<1.0) - likely experimental artifact in literature
+- NovelHypothesis: No/weak lit + Strong data (CLR>4.0) - new discovery
 
 Output valid JSON only."""),
 
@@ -179,8 +372,8 @@ Output valid JSON only."""),
 {edge_data}
 
 For EACH edge:
-1. Classify using the 7-category system
-2. Provide 3-5 sentence scientific explanation with specific CLR scores and context details
+1. Classify using the 4-category system (Validated, ConditionSilent, ProbableFalsePos, NovelHypothesis)
+2. Provide 3-5 sentence scientific explanation with specific CLR scores
 3. Identify cross-edge patterns
 
 {format_instructions}""")
@@ -232,84 +425,100 @@ def apply_rule_based_review(edges: List[Dict], tf_bnumber: str, state: AgentStat
 
 def apply_decision_tree(lit: Dict, stats: Dict, ctx: Dict) -> Tuple[str, str]:
     """
-    7-category decision tree using CLR thresholds (>3.0 strong, <2.0 weak).
+    4-category decision tree using CLR thresholds (>4.0 strong, <2.0 weak).
     Returns (status, explanation) with 100+ character scientific justification.
+
+    Categories:
+    - Validated: Strong literature + High data support
+    - ConditionSilent: Strong literature + Low data (context mismatch explains silence)
+    - ProbableFalsePos: Weak literature + No data support
+    - NovelHypothesis: No literature + High data support
     """
     clr = stats.get("clr_zscore", 0.0)
     mi = stats.get("mi", 0.0)
     lit_exists = lit.get("exists", False)
-    lit_strong = lit.get("evidence_strength") == "strong"
+    lit_strong = lit.get("evidence_strength") in ["strong", "confirmed"]
+    lit_weak = lit.get("evidence_strength") == "weak"
     lit_effect = lit.get("effect", "unknown")
-    ctx_match = ctx.get("match", False)
     ctx_explanation = ctx.get("explanation", "No context information available")
 
-    if lit_exists:
-        if clr > 3.0:
-            if ctx_match:
-                return "Validated", (
-                    f"This edge shows strong agreement between literature and experimental data. "
-                    f"Literature reports {lit_effect} with {lit.get('evidence_strength', 'unknown')} evidence, "
-                    f"and the statistical analysis confirms this with CLR z-score of {clr:.2f} (strong signal) "
-                    f"and mutual information of {mi:.3f}. Context conditions match between literature and dataset."
-                )
-            else:
-                return "Active", (
-                    f"Strong statistical signal (CLR={clr:.2f}, MI={mi:.3f}) supports this regulatory relationship "
-                    f"despite context mismatch with literature. Literature reports {lit_effect}, "
-                    f"but experimental conditions differ. Context note: {ctx_explanation}. "
-                    f"The edge is likely active but may exhibit different behavior than literature expectations."
-                )
-        elif clr < 2.0:
-            if not ctx_match:
-                return "Condition-Silent", (
-                    f"Literature supports this edge ({lit_effect}, {lit.get('evidence_strength', 'unknown')} evidence) "
-                    f"but statistical signal is weak (CLR={clr:.2f}, MI={mi:.3f}). "
-                    f"The low correlation is explained by context mismatch: {ctx_explanation}. "
-                    f"This interaction likely requires specific conditions not present in this dataset."
-                )
-            elif lit_strong:
-                return "Condition-Silent", (
-                    f"Strong literature evidence for {lit_effect} regulation, but weak statistical signal "
-                    f"(CLR={clr:.2f}, MI={mi:.3f}) despite matching contexts. "
-                    f"This suggests the interaction may require additional specific conditions, "
-                    f"post-transcriptional regulation, or indirect effects not captured in expression data alone."
-                )
-            else:
-                return "Probable False Positive", (
-                    f"Weak literature evidence combined with no statistical support (CLR={clr:.2f}, MI={mi:.3f}) "
-                    f"despite context match. Context: {ctx_explanation}. "
-                    f"This edge likely represents a false positive from the original literature study. "
-                    f"Consider removing from the network or flagging for experimental validation."
-                )
-        else:
-            return "Condition-Silent", (
-                f"Literature supports this regulatory relationship ({lit_effect}), "
-                f"and moderate statistical signal (CLR={clr:.2f}, MI={mi:.3f}) suggests partial activity. "
-                f"This borderline case may indicate condition-dependent regulation or weak regulatory effects. "
-                f"Context match status: {ctx_match}."
+    # Thresholds (matching reconciler agent)
+    HIGH_DATA = 4.0
+    MODERATE_DATA = 2.0
+    LOW_DATA = 1.0
+
+    if lit_exists and lit_strong:
+        # Case A: Strong literature evidence
+        if clr >= HIGH_DATA:
+            return "Validated", (
+                f"This edge shows strong agreement between literature and experimental data. "
+                f"Literature reports {lit_effect} with {lit.get('evidence_strength', 'unknown')} evidence, "
+                f"and the statistical analysis confirms this with CLR z-score of {clr:.2f} (strong signal) "
+                f"and mutual information of {mi:.3f}. This is a confirmed active regulatory relationship."
             )
+        elif clr >= MODERATE_DATA:
+            return "Validated", (
+                f"Strong literature evidence for {lit_effect} regulation with moderate data support "
+                f"(CLR={clr:.2f}, MI={mi:.3f}). While not the strongest correlation, "
+                f"the combination of solid literature and moderate statistical signal supports this edge."
+            )
+        else:
+            # Case B: Condition-Silent
+            return "ConditionSilent", (
+                f"Literature supports this edge ({lit_effect}, {lit.get('evidence_strength', 'unknown')} evidence) "
+                f"but statistical signal is weak (CLR={clr:.2f}, MI={mi:.3f}). "
+                f"Context: {ctx_explanation}. "
+                f"This interaction likely requires specific conditions not present in this dataset, "
+                f"or involves post-transcriptional regulation not captured in expression data."
+            )
+
+    elif lit_exists and lit_weak:
+        # Weak literature evidence
+        if clr >= HIGH_DATA:
+            return "Validated", (
+                f"Weak literature evidence upgraded by strong statistical support (CLR={clr:.2f}, MI={mi:.3f}). "
+                f"The high-throughput data provides robust evidence for this {lit_effect} regulatory relationship, "
+                f"validating the original weak literature claim."
+            )
+        elif clr < LOW_DATA:
+            # Case C: Probable False Positive
+            return "ProbableFalsePos", (
+                f"Weak literature evidence combined with no statistical support (CLR={clr:.2f}, MI={mi:.3f}). "
+                f"This edge likely represents a false positive from the original literature study, "
+                f"possibly due to experimental artifacts or non-physiological conditions. "
+                f"Consider removing from the network or flagging for re-validation."
+            )
+        else:
+            return "ConditionSilent", (
+                f"Weak literature evidence with marginal data support (CLR={clr:.2f}, MI={mi:.3f}). "
+                f"The relationship may exist but be condition-dependent or indirect."
+            )
+
     else:
-        if clr > 3.0:
-            return "Novel Hypothesis", (
+        # No literature evidence
+        if clr >= HIGH_DATA:
+            # Case D: Novel Hypothesis
+            return "NovelHypothesis", (
                 f"Strong statistical evidence (CLR={clr:.2f}, MI={mi:.3f}) indicates a regulatory relationship "
                 f"with no supporting literature documentation. This represents a potential novel discovery "
                 f"that has not been characterized in existing databases. The high correlation suggests direct "
                 f"or strong indirect regulation worth experimental validation via ChIP-seq or reporter assays."
             )
         else:
-            return "Unsupported", (
-                f"No literature evidence exists for this edge, and statistical analysis shows weak signal "
-                f"(CLR={clr:.2f}, MI={mi:.3f}). Without support from either source, "
-                f"this edge lacks sufficient evidence for inclusion in the regulatory network. "
-                f"May represent noise or very weak indirect effects below detection threshold."
+            # Not enough evidence from either source - treat as ConditionSilent
+            return "ConditionSilent", (
+                f"No literature evidence and weak statistical signal (CLR={clr:.2f}, MI={mi:.3f}). "
+                f"Insufficient evidence for classification."
             )
 
 
 def classify_data_strength(clr: float) -> str:
-    """CLR thresholds from architecture."""
-    if clr > 3.0:
+    """CLR thresholds matching 4-category system."""
+    if clr >= 4.0:
         return "strong"
-    elif clr > 1.0:
+    elif clr >= 2.0:
+        return "moderate"
+    elif clr >= 1.0:
         return "weak"
     else:
         return "none"
@@ -319,32 +528,57 @@ def post_process_decisions(
     review: SubgraphReview,
     state: AgentState,
     tf_bnumber: str,
-    method: str,
-    messages: List
+    method: str
 ) -> Dict[str, Any]:
-    """Aggregates decisions, identifies zombies/novel hypotheses, updates state."""
+    """
+    Aggregates decisions, identifies zombies/novel hypotheses, updates state.
+
+    Uses 4-category system: Validated, ConditionSilent, ProbableFalsePos, NovelHypothesis
+    """
     edge_decisions = [d.model_dump() for d in review.edge_decisions]
 
-    zombie_candidates = [
-        d for d in edge_decisions
-        if d["reconciliation_status"] == "Probable False Positive"
-    ]
+    # Get existing logs
+    reconciliation_log = state.get("reconciliation_log", []).copy()
+    false_positive_candidates = state.get("false_positive_candidates", []).copy()
+    novel_hypotheses = state.get("novel_hypotheses", []).copy()
+    bnumber_to_name = state.get("bnumber_to_gene_name", {})
 
-    novel_hypotheses = [
-        d for d in edge_decisions
-        if d["reconciliation_status"] == "Novel Hypothesis"
-    ]
+    # Process each edge decision
+    for decision in edge_decisions:
+        # Convert to standard reconciliation log format
+        tf_name = bnumber_to_name.get(tf_bnumber, tf_bnumber)
+        target = decision["edge_id"].split("→")[1]
+        target_name = bnumber_to_name.get(target, target)
+
+        log_entry = {
+            "source_tf": tf_bnumber,
+            "target_gene": target,
+            "source_tf_name": tf_name,
+            "target_gene_name": target_name,
+            "regulondb_evidence": decision.get("literature_support", "unknown"),
+            "regulondb_effect": "?",  # Not tracked in reviewer output
+            "m3d_z_score": 0.0,  # Would need to extract from stats
+            "m3d_mi": 0.0,
+            "reconciliation_status": decision["reconciliation_status"],
+            "context_tags": [],  # Could extract from context
+            "notes": f"[{method.upper()}] {decision['explanation']}"
+        }
+
+        reconciliation_log.append(log_entry)
+
+        # Add to category-specific lists
+        if decision["reconciliation_status"] == "ProbableFalsePos":
+            false_positive_candidates.append(log_entry)
+        elif decision["reconciliation_status"] == "NovelHypothesis":
+            novel_hypotheses.append(log_entry)
 
     summary = generate_summary_message(review, method)
+    logger.info(summary)
 
     return {
-        "messages": messages + [AIMessage(content=summary)],
-        "reviewer__edge_decisions": edge_decisions,
-        "reviewer__tf_summaries": {tf_bnumber: review.tf_level_notes},
-        "reviewer__comparative_analysis": {tf_bnumber: review.comparative_analysis},
-        "reviewer__reconciliation_log": state.get("reviewer__reconciliation_log", []) + edge_decisions,
-        "reviewer__zombie_candidates": state.get("reviewer__zombie_candidates", []) + zombie_candidates,
-        "reviewer__novel_hypotheses": state.get("reviewer__novel_hypotheses", []) + novel_hypotheses
+        "reconciliation_log": reconciliation_log,
+        "false_positive_candidates": false_positive_candidates,
+        "novel_hypotheses": novel_hypotheses
     }
 
 

@@ -36,4 +36,5 @@ tqdm>=4.65.0
 # Logging
 loguru>=0.7.0
 
-
+# Vector Store
+chromadb>=0.4.22

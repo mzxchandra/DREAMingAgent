@@ -8,12 +8,12 @@ The workflow is cyclic: it loops through batches of TFs until
 all have been analyzed and reconciled.
 
 Flow:
-    loader → batch_manager → [check queue] → context_agent → analysis_agent → reconciler → batch_manager
+    loader → batch_manager → [check queue] → research_agent → analysis_agent → reviewer → batch_manager
                                 ↓ (empty)
                                END
 """
 
-from typing import Dict, Any, Literal
+from typing import Dict, TypedDict, Annotated, List, Any, Optional, Literal
 from pathlib import Path
 from langgraph.graph import StateGraph, END
 from loguru import logger
@@ -23,9 +23,9 @@ from .nodes import (
     loader_node,
     batch_manager_node,
     check_queue_status,
-    context_agent_node,
+    research_agent_node,
     analysis_agent_node,
-    reconciler_node
+    reviewer_agent_node
 )
 from .nodes.loader import LoaderConfig, set_loader_config
 
@@ -33,67 +33,68 @@ from .nodes.loader import LoaderConfig, set_loader_config
 def create_reconciliation_workflow() -> StateGraph:
     """
     Create the complete LangGraph workflow for GRN reconciliation.
-    
+
     The workflow consists of 5 nodes connected in a cyclic pattern:
     1. Loader: Ingests RegulonDB and M3D data
     2. Batch Manager: Selects next batch of TFs to process
-    3. Context Agent: Filters M3D samples based on TF context
+    3. Research Agent: Retrieves literature context from vector store (RAG)
     4. Analysis Agent: Computes CLR-corrected MI scores
-    5. Reconciler: Compares literature vs data evidence
-    
+    5. Reviewer Agent: Compares literature vs data evidence using 4-category system
+       (Validated, ConditionSilent, ProbableFalsePos, NovelHypothesis)
+
     Returns:
         Compiled LangGraph workflow
     """
     logger.info("Creating reconciliation workflow...")
-    
+
     # Initialize StateGraph with AgentState schema
     workflow = StateGraph(AgentState)
-    
+
     # =========================================================================
     # Add Nodes
     # =========================================================================
-    
+
     # 1. LOADER: Ingests text files, builds Graph, cleans Matrix
     workflow.add_node("loader", loader_node)
-    
+
     # 2. BATCHER: Selects the next TF to analyze (prevents OOM errors)
     workflow.add_node("batch_manager", batch_manager_node)
-    
-    # 3. CONTEXT: Filters M3D metadata (e.g., "Find all Anaerobic samples")
-    workflow.add_node("context_agent", context_agent_node)
-    
+
+    # 3. RESEARCH: Literature context retrieval via vector store (RAG)
+    workflow.add_node("research_agent", research_agent_node)
+
     # 4. ANALYST: The Core Math Engine (CLR/MI calculation)
     workflow.add_node("analysis_agent", analysis_agent_node)
-    
-    # 5. RECONCILER: The Logic Engine (Literature vs. Data comparison)
-    workflow.add_node("reconciler", reconciler_node)
-    
+
+    # 5. REVIEWER: The Logic Engine (Literature vs. Data comparison with 4-category system)
+    workflow.add_node("reviewer", reviewer_agent_node)
+
     # =========================================================================
     # Add Edges (Control Flow)
     # =========================================================================
-    
+
     # Entry point: Start with the loader
     workflow.set_entry_point("loader")
-    
+
     # Loader → Batch Manager
     workflow.add_edge("loader", "batch_manager")
-    
+
     # Conditional edge: If batch is empty, END. Else, continue processing.
     workflow.add_conditional_edges(
         "batch_manager",
         check_queue_status,
         {
-            "process": "context_agent",
+            "process": "research_agent",
             "done": END
         }
     )
-    
-    # Context → Analysis → Reconciliation (linear flow)
-    workflow.add_edge("context_agent", "analysis_agent")
-    workflow.add_edge("analysis_agent", "reconciler")
-    
-    # Cycle: After reconciliation, go back to Batch Manager for next TF
-    workflow.add_edge("reconciler", "batch_manager")
+
+    # Research → Analysis → Review (linear flow)
+    workflow.add_edge("research_agent", "analysis_agent")
+    workflow.add_edge("analysis_agent", "reviewer")
+
+    # Cycle: After review, go back to Batch Manager for next TF
+    workflow.add_edge("reviewer", "batch_manager")
     
     logger.info("Workflow created successfully")
     
@@ -116,8 +117,8 @@ def compile_workflow(workflow: StateGraph):
 def run_reconciliation(
     regulondb_network_path: str | Path,
     regulondb_gene_product_path: str | Path,
-    m3d_expression_path: str | Path,
-    m3d_metadata_path: str | Path,
+    m3d_expression_path: Optional[str | Path] = None,
+    m3d_metadata_path: Optional[str | Path] = None,
     max_iterations: int = 100,
     use_synthetic: bool = False
 ) -> Dict[str, Any]:
@@ -163,7 +164,10 @@ def run_reconciliation(
     logger.info("Executing workflow...")
     
     try:
-        final_state = app.invoke(initial_state)
+        final_state = app.invoke(
+            initial_state,
+            config={"recursion_limit": max_iterations * 10}
+        )
         
         logger.info("=" * 60)
         logger.info("RECONCILIATION COMPLETE")

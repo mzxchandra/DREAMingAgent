@@ -1,14 +1,23 @@
 """
-Research Agent Node: Literature-aware hypothesis generation for gene regulatory networks.
+Research Agent Node: Literature-informed context filtering & hypothesis generation.
 
-This module provides a complete Research Agent that retrieves and contextualizes
-literature evidence for gene pairs. It integrates into the main workflow as a
-single node while internally running a 6-step LangGraph workflow.
+This module provides a Research Agent that replaces the context_agent functionality
+while adding literature analysis capabilities. It performs two main tasks:
+
+1. CONTEXT FILTERING: Uses biological knowledge to filter M3D samples based on TF context
+2. LITERATURE ANALYSIS: Retrieves and contextualizes literature evidence for gene pairs
 
 Architecture:
     - External Interface: research_agent_node(state: AgentState) -> Dict[str, Any]
-    - Internal Workflow: 6-node LangGraph (query_formulation, vector_retrieval,
-      context_extraction, condition_matching, explanation_generation, output_formatting)
+    - Context Mode: Replaces context_agent with literature-informed sample filtering
+    - Literature Mode: 6-node internal LangGraph workflow for gene pair analysis
+      (query_formulation, vector_retrieval, context_extraction, condition_matching,
+       explanation_generation, output_formatting)
+
+Integration:
+    - Replaces context_agent_node in the main workflow
+    - Maintains backward compatibility with expected input/output interface
+    - Adds research-specific state fields with 'research__' prefix
 """
 
 import re
@@ -924,80 +933,359 @@ def _ensure_vector_store_initialized() -> None:
 
 
 # ============================================================================
+# Context Agent Integration Functions
+# ============================================================================
+
+def _validate_state_inputs_for_context_mode(state: AgentState) -> None:
+    """Validate required state fields exist for context mode."""
+    required = ["current_batch_tfs", "metadata", "expression_matrix", "bnumber_to_gene_name"]
+    missing = [k for k in required if k not in state or state[k] is None]
+    if missing:
+        raise ValueError(f"Missing required state fields: {missing}")
+
+
+def _error_response_with_context(message: str, state: AgentState) -> Dict[str, Any]:
+    """Return error state update with fallback context behavior."""
+    expression_matrix = state.get("expression_matrix", pd.DataFrame())
+    return {
+        "active_sample_indices": list(expression_matrix.columns) if not expression_matrix.empty else [],
+        "current_context": "error_fallback",
+        "research__errors": [message],
+        "research__literature_edges": {},
+        "research__annotations": {},
+        "research__reasoning_traces": {"error": message}
+    }
+
+
+def _determine_literature_informed_context(
+    current_batch_tfs: List[str],
+    bnumber_to_name: Dict[str, str],
+    metadata: pd.DataFrame,
+    expression_matrix: pd.DataFrame
+) -> Dict[str, Any]:
+    """
+    Determine experimental context using literature-informed analysis.
+
+    This function replaces the context_agent's core logic by using
+    literature knowledge to filter samples.
+    """
+    reasoning_trace = []
+    reasoning_trace.append(f"Starting literature-informed context determination for {len(current_batch_tfs)} TFs")
+
+    if metadata.empty or expression_matrix.empty:
+        reasoning_trace.append("No metadata or expression data available - using all samples")
+        return {
+            "active_sample_indices": list(expression_matrix.columns),
+            "current_context": "no_metadata_available",
+            "reasoning_trace": reasoning_trace
+        }
+
+    # Collect condition keywords from TF names using biological knowledge
+    all_keywords = set()
+    context_descriptions = []
+
+    for tf in current_batch_tfs:
+        tf_name = bnumber_to_name.get(tf, tf).lower()
+
+        # Use literature knowledge base (same as original context_agent)
+        keywords = _get_context_from_biological_knowledge(tf_name)
+        if keywords:
+            all_keywords.update(keywords)
+            context_descriptions.append(f"{tf_name}: {', '.join(keywords)}")
+            reasoning_trace.append(f"TF {tf_name} associated with conditions: {keywords}")
+
+    # If no specific context found, use all samples
+    if not all_keywords:
+        reasoning_trace.append("No specific context found for TFs, using all samples")
+        return {
+            "active_sample_indices": list(expression_matrix.columns),
+            "current_context": "all_conditions",
+            "reasoning_trace": reasoning_trace
+        }
+
+    # Filter metadata based on keywords
+    relevant_samples = _filter_samples_by_keywords(
+        metadata,
+        all_keywords,
+        expression_matrix.columns
+    )
+
+    # Ensure minimum sample size
+    MIN_SAMPLES = 10
+    if len(relevant_samples) < MIN_SAMPLES:
+        reasoning_trace.append(
+            f"Only {len(relevant_samples)} relevant samples found "
+            f"(minimum: {MIN_SAMPLES}). Using all samples."
+        )
+        relevant_samples = list(expression_matrix.columns)
+        context_description = f"fallback_to_all (keywords: {', '.join(list(all_keywords)[:5])})"
+    else:
+        context_description = "; ".join(context_descriptions) if context_descriptions else ", ".join(list(all_keywords)[:5])
+
+    reasoning_trace.append(
+        f"Context filtering: {len(relevant_samples)} samples selected from {len(expression_matrix.columns)} total"
+    )
+
+    return {
+        "active_sample_indices": relevant_samples,
+        "current_context": context_description,
+        "reasoning_trace": reasoning_trace
+    }
+
+
+def _get_context_from_biological_knowledge(tf_name: str) -> List[str]:
+    """
+    Get relevant conditions from biological knowledge base.
+
+    This uses the same TF_CONDITION_MAP as the original context_agent.
+    """
+    # Knowledge base from original context_agent
+    TF_CONDITION_MAP = {
+        # Anaerobic regulators
+        "fnr": ["anaerobic", "anaerobiosis", "oxygen", "fermentation", "no_oxygen"],
+        "arca": ["anaerobic", "microaerobic", "oxygen"],
+
+        # Stress response
+        "rpoh": ["heat", "heat_shock", "temperature", "42c", "thermal"],
+        "rpos": ["stationary", "starvation", "stress", "osmotic"],
+        "soxs": ["oxidative", "superoxide", "paraquat", "redox"],
+        "soxr": ["oxidative", "superoxide", "paraquat", "redox"],
+        "oxyr": ["oxidative", "h2o2", "peroxide", "hydrogen_peroxide"],
+
+        # Carbon metabolism
+        "crp": ["glucose", "carbon", "camp", "catabolite", "lactose", "glycerol"],
+        "fis": ["growth", "exponential", "rich_media"],
+        "mlc": ["glucose", "pts", "carbon"],
+
+        # Nitrogen metabolism
+        "nac": ["nitrogen", "ammonia", "glutamine"],
+        "ntrc": ["nitrogen", "ammonia", "limiting"],
+
+        # Metal homeostasis
+        "fur": ["iron", "fe", "metal"],
+        "zur": ["zinc", "zn", "metal"],
+
+        # DNA damage
+        "lexa": ["dna_damage", "uv", "sos", "mitomycin", "norfloxacin"],
+        "reca": ["dna_damage", "uv", "sos"],
+
+        # Acid stress
+        "gadr": ["acid", "ph", "low_ph", "acidic"],
+        "gadx": ["acid", "ph", "low_ph", "acidic"],
+
+        # Arabinose metabolism
+        "arac": ["arabinose", "ara", "l-arabinose"],
+
+        # Biofilm / motility
+        "flhdc": ["flagella", "motility", "biofilm"],
+    }
+
+    tf_lower = tf_name.lower()
+
+    # Direct match
+    if tf_lower in TF_CONDITION_MAP:
+        return TF_CONDITION_MAP[tf_lower]
+
+    # Partial match
+    for known_tf, keywords in TF_CONDITION_MAP.items():
+        if known_tf in tf_lower or tf_lower in known_tf:
+            return keywords
+
+    return []
+
+
+def _filter_samples_by_keywords(
+    metadata: pd.DataFrame,
+    keywords: set,
+    available_columns: List[str]
+) -> List[str]:
+    """
+    Filter experiment IDs based on keyword matching in metadata.
+
+    This uses the same logic as the original context_agent.
+    """
+    matching_experiments = set()
+
+    # Search all text columns in metadata
+    for col in metadata.columns:
+        if metadata[col].dtype == 'object':
+            for idx, value in metadata[col].items():
+                if pd.notna(value):
+                    value_lower = str(value).lower()
+                    for keyword in keywords:
+                        if keyword in value_lower:
+                            matching_experiments.add(str(idx))
+                            break
+
+    # Also check experiment IDs themselves
+    for col in available_columns:
+        col_lower = str(col).lower()
+        for keyword in keywords:
+            if keyword in col_lower:
+                matching_experiments.add(col)
+                break
+
+    # Filter to columns that exist in expression matrix
+    available_set = set(str(c) for c in available_columns)
+    valid_samples = [s for s in matching_experiments if s in available_set]
+
+    return valid_samples
+
+
+def _construct_dataset_metadata_from_context(context: str, metadata_df: pd.DataFrame) -> DatasetMetadata:
+    """Build DatasetMetadata from determined context and metadata DataFrame."""
+    # Extract conditions from context string
+    conditions = _parse_conditions_from_context(context)
+
+    # Extract treatment and growth_phase from metadata
+    treatment = _extract_treatment(metadata_df)
+    growth_phase = _extract_growth_phase(metadata_df)
+
+    return DatasetMetadata(
+        conditions=conditions,
+        treatment=treatment,
+        growth_phase=growth_phase,
+        media=_extract_media(metadata_df),
+        strain=_extract_strain(metadata_df)
+    )
+
+
+# ============================================================================
 # Main Node Function (External Interface)
 # ============================================================================
 
 def research_agent_node(state: AgentState) -> Dict[str, Any]:
     """
-    Research Agent Node: Retrieves and contextualizes literature evidence.
+    Research Agent Node: AI-Powered Sample Filtering & Literature Contextualization.
 
-    This node integrates a 6-step LangGraph workflow to analyze gene pairs:
-    1. Query Formulation: Create optimized search query
-    2. Vector Retrieval: Retrieve literature from ChromaDB
-    3. Context Extraction: Extract regulatory relationships
-    4. Condition Matching: Compare dataset vs literature conditions
-    5. Explanation Generation: Generate natural language explanation
-    6. Output Formatting: Structure final output
+    This node replaces the context_agent by:
+    1. Using literature analysis to determine relevant experimental conditions
+    2. Filtering M3D samples based on literature-informed context
+    3. Performing literature analysis for gene pairs in current batch
+
+    The workflow integrates:
+    - Context determination (replacing context_agent functionality)
+    - Literature analysis (original research_agent functionality)
 
     Args:
-        state: AgentState with current_batch_tfs, literature_graph, metadata
+        state: AgentState with current_batch_tfs, literature_graph, metadata, expression_matrix
 
     Returns:
         Dict with state updates:
-        - research__literature_edges: Literature relationships
-        - research__annotations: Edge-level annotations
-        - research__reasoning_traces: Transparency logs
+        - active_sample_indices: Filtered sample IDs for analysis (context_agent output)
+        - current_context: Description of selected conditions (context_agent output)
+        - research__literature_edges: Literature relationships (research_agent output)
+        - research__annotations: Edge-level annotations (research_agent output)
+        - research__reasoning_traces: Transparency logs (research_agent output)
         - research__errors: Error messages (if any)
 
     Raises:
         No exceptions raised - errors are captured in state updates
     """
-    logger.info("=== RESEARCH AGENT NODE: Retrieving literature evidence ===")
+    logger.info("=== RESEARCH AGENT NODE: Literature-informed context filtering ===")
 
     # Phase 1: Validation & Setup
     try:
-        _validate_state_inputs(state)
-        _ensure_vector_store_initialized()
+        _validate_state_inputs_for_context_mode(state)
     except Exception as e:
         logger.error(f"Research Agent setup failed: {e}")
-        return _error_response(f"Setup failed: {e}")
+        return _error_response_with_context(f"Setup failed: {e}", state)
 
-    # Phase 2: Extract Gene Pairs
-    gene_pairs = _extract_gene_pairs_from_state(state)
-    if not gene_pairs:
-        logger.warning("No gene pairs to analyze")
-        return _empty_response("No gene pairs to analyze")
+    current_batch_tfs = state.get("current_batch_tfs", [])
+    metadata = state.get("metadata", pd.DataFrame())
+    expression_matrix = state.get("expression_matrix", pd.DataFrame())
+    bnumber_to_name = state.get("bnumber_to_gene_name", {})
 
-    logger.info(f"Processing {len(gene_pairs)} gene pairs")
+    # Phase 2: Context Determination (replacing context_agent)
+    try:
+        context_result = _determine_literature_informed_context(
+            current_batch_tfs, bnumber_to_name, metadata, expression_matrix
+        )
+        active_sample_indices = context_result["active_sample_indices"]
+        current_context = context_result["current_context"]
+        reasoning_trace_context = context_result["reasoning_trace"]
 
-    # Phase 3: Build Dataset Context
-    dataset_metadata = _construct_dataset_metadata(state)
+        logger.info(f"Context filtering: {len(active_sample_indices)} samples selected from {len(expression_matrix.columns)} total")
 
-    # Phase 4: Process Each Gene Pair
-    all_results = []
-    for gene_a, gene_b in gene_pairs:
-        try:
-            # Create input
-            research_input = ResearchAgentInput(
-                gene_a=gene_a,
-                gene_b=gene_b,
-                dataset_metadata=dataset_metadata,
-                statistical_summary=_get_statistical_summary(state, gene_a, gene_b)
-            )
+    except Exception as e:
+        logger.error(f"Context determination failed: {e}")
+        return _error_response_with_context(f"Context determination failed: {e}", state)
 
-            # Run internal 6-node workflow
-            logger.debug(f"Analyzing {gene_a} -> {gene_b}")
-            output = _run_internal_workflow(research_input)
-            all_results.append((gene_a, gene_b, output))
+    # Phase 3: Literature Analysis (original research_agent functionality)
+    literature_result = {}
+    try:
+        # Only proceed with literature analysis if vector store is available
+        _ensure_vector_store_initialized()
 
-        except Exception as e:
-            # Capture per-pair errors
-            logger.warning(f"Error analyzing {gene_a} -> {gene_b}: {e}")
-            all_results.append((gene_a, gene_b, _error_output(e, gene_a, gene_b)))
+        # Extract Gene Pairs
+        gene_pairs = _extract_gene_pairs_from_state(state)
+        if gene_pairs:
+            logger.info(f"Processing {len(gene_pairs)} gene pairs for literature analysis")
 
-    # Phase 5: Format Results
-    logger.info(f"Research Agent completed: {len(all_results)} gene pairs processed")
-    return _format_results_for_agent_state(all_results)
+            # Build Dataset Context using determined context
+            dataset_metadata = _construct_dataset_metadata_from_context(current_context, metadata)
+
+            # Process Each Gene Pair
+            all_results = []
+            for gene_a, gene_b in gene_pairs:
+                try:
+                    # Create input
+                    research_input = ResearchAgentInput(
+                        gene_a=gene_a,
+                        gene_b=gene_b,
+                        dataset_metadata=dataset_metadata,
+                        statistical_summary=_get_statistical_summary(state, gene_a, gene_b)
+                    )
+
+                    # Run internal 6-node workflow
+                    logger.debug(f"Analyzing {gene_a} -> {gene_b}")
+                    output = _run_internal_workflow(research_input)
+                    all_results.append((gene_a, gene_b, output))
+
+                except Exception as e:
+                    # Capture per-pair errors
+                    logger.warning(f"Error analyzing {gene_a} -> {gene_b}: {e}")
+                    all_results.append((gene_a, gene_b, _error_output(e, gene_a, gene_b)))
+
+            # Format literature results
+            literature_result = _format_results_for_agent_state(all_results)
+            logger.info(f"Literature analysis completed: {len(all_results)} gene pairs processed")
+        else:
+            logger.info("No gene pairs found for literature analysis")
+            literature_result = _empty_response("No gene pairs to analyze")
+
+    except Exception as e:
+        logger.warning(f"Literature analysis failed (continuing with context-only mode): {e}")
+        literature_result = _empty_response(f"Literature analysis failed: {e}")
+
+    # Phase 4: Combine Results
+    combined_result = {
+        # Context agent outputs (primary functionality)
+        "active_sample_indices": active_sample_indices,
+        "current_context": current_context,
+
+        # Add context reasoning to research traces
+        "research__reasoning_traces": {
+            **literature_result.get("research__reasoning_traces", {}),
+            "context_determination": reasoning_trace_context
+        }
+    }
+
+    # Add literature outputs if available
+    if "research__literature_edges" in literature_result:
+        combined_result.update({
+            "research__literature_edges": literature_result["research__literature_edges"],
+            "research__annotations": literature_result["research__annotations"]
+        })
+
+    # Add errors if any
+    context_errors = []
+    lit_errors = literature_result.get("research__errors", [])
+    if context_errors or lit_errors:
+        combined_result["research__errors"] = context_errors + lit_errors
+
+    logger.info("Research Agent completed: context filtering and literature analysis done")
+    return combined_result
 
 
 # ============================================================================

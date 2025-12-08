@@ -113,8 +113,8 @@ Examples:
     parser.add_argument(
         "--llm-model",
         type=str,
-        default="gemini-2.5-flash",
-        help="LLM model to use (default: gemini-2.5-flash)"
+        default="argonne-llama3",
+        help="LLM model to use (default: argonne-llama3)"
     )
     
     args = parser.parse_args()
@@ -137,22 +137,13 @@ Examples:
         logger.info("LLM reasoning DISABLED - using rule-based fallbacks")
         disable_llm()
     else:
-        import os
-        if not os.environ.get("GEMINI_API_KEY"):
-            logger.warning(
-                "GEMINI_API_KEY not set. LLM features will be disabled. "
-                "Set the environment variable or use --no-llm flag."
-            )
-            disable_llm()
-        else:
-            logger.info(f"LLM reasoning ENABLED - using {args.llm_model}")
-            config = AgentConfig(
-                use_llm=True,
-                llm_model=args.llm_model,
-                use_llm_reconciler=True,
-                use_llm_context=True
-            )
-            set_config(config)
+        logger.info(f"LLM reasoning ENABLED - using {args.llm_model} (ALCF/Argonne)")
+        config = AgentConfig(
+            use_llm=True,
+            llm_model=args.llm_model,
+            use_llm_reconciler=True
+        )
+        set_config(config)
     
     try:
         if args.synthetic:
@@ -163,10 +154,9 @@ Examples:
             )
         else:
             # Validate required arguments
-            if not all([args.network, args.genes, args.expression, args.metadata]):
+            if not all([args.network, args.genes]):
                 parser.error(
-                    "When not using --synthetic, all data paths are required: "
-                    "--network, --genes, --expression, --metadata"
+                    "When not using --synthetic, at least --network and --genes are required."
                 )
             
             # Run with real data

@@ -15,16 +15,13 @@ class AgentConfig:
     
     # LLM Settings
     use_llm: bool = True
-    llm_model: str = "gemini-2.5-flash"
+    llm_model: str = "argonne-llama3"  # Using ALCF/Argonne LLM
     llm_temperature: float = 0.3
     
     # Reconciler Settings
     use_llm_reconciler: bool = True
     use_batch_mode: bool = True  # Batch LLM calls for efficiency
-    
-    # Context Agent Settings
-    use_llm_context: bool = True
-    
+
     # Thresholds
     z_score_high: float = 4.0
     z_score_moderate: float = 2.0
@@ -40,9 +37,8 @@ class AgentConfig:
         """Create config from environment variables."""
         return cls(
             use_llm=os.environ.get("DREAMING_USE_LLM", "true").lower() == "true",
-            llm_model=os.environ.get("DREAMING_LLM_MODEL", "gemini-2.5-flash"),
+            llm_model=os.environ.get("DREAMING_LLM_MODEL", "argonne-llama3"),
             use_llm_reconciler=os.environ.get("DREAMING_LLM_RECONCILER", "true").lower() == "true",
-            use_llm_context=os.environ.get("DREAMING_LLM_CONTEXT", "true").lower() == "true",
         )
 
 
@@ -62,12 +58,11 @@ def set_config(config: AgentConfig):
     """Set the global configuration."""
     global _config
     _config = config
-    
+
     # Update module-level flags
     from . import nodes
     nodes.reconciler.USE_LLM_REASONING = config.use_llm_reconciler
     nodes.reconciler.USE_BATCH_MODE = config.use_batch_mode
-    nodes.context_agent.USE_LLM_CONTEXT = config.use_llm_context
     nodes.batch_manager.BATCH_SIZE = config.batch_size
 
 
@@ -76,7 +71,6 @@ def disable_llm():
     config = get_config()
     config.use_llm = False
     config.use_llm_reconciler = False
-    config.use_llm_context = False
     set_config(config)
 
 
@@ -85,6 +79,5 @@ def enable_llm():
     config = get_config()
     config.use_llm = True
     config.use_llm_reconciler = True
-    config.use_llm_context = True
     set_config(config)
 
