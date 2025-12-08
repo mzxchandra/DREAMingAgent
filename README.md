@@ -127,12 +127,23 @@ python main.py --synthetic --no-llm --output output/
 python main.py --synthetic --output output/
 ```
 
-### Test Coverage
+### Running with Real Data
+
+To run the system with your own data files (or the provided RegulonDB files in `data/`):
 
 ```bash
+# Using only RegulonDB Network and Gene Mappings (Rule-based, no LLM)
+# M3D expression data is optional; if omitted, statistical analysis checks are skipped.
 python main.py \
-  --network data/network_tf_gene.txt \
-  --genes data/gene_product.txt \
+  --network data/NetworkRegulatorGene.tsv \
+  --genes data/GeneProductAllIdentifiersSet.tsv \
+  --no-llm
+
+# Using Full Dataset (RegulonDB + M3D)
+# (Requires M3D files at specified paths)
+python main.py \
+  --network data/NetworkRegulatorGene.tsv \
+  --genes data/GeneProductAllIdentifiersSet.tsv \
   --expression data/E_coli_v4_Build_6_exps.tab \
   --metadata data/E_coli_v4_Build_6_meta.tab \
   --output results/
