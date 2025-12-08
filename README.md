@@ -1,37 +1,54 @@
-# DREAMing Agent: Biological Network Reconciliation System
+# DREAMing Agent
 
-Multi-agent system for reconciling curated literature knowledge (RegulonDB) with high-throughput expression data (M3D) using LangGraph and LLM-powered decision making.
+**Agentic Reconciliation of Biological Literature and High-Throughput Data**
 
----
-
-## System Architecture
-
-```
-Loader → Batch Manager → Research Agent → Analysis Agent → Reviewer Agent → (loop)
-```
-
-**Current Implementation Status:**
-- ✅ **State Schema** ([src/state.py](src/state.py)) - Namespaced flat state design
-- ✅ **Reviewer Agent** ([src/nodes/reviewer_agent.py](src/nodes/reviewer_agent.py)) - LLM + rule-based reconciliation
-- ⏳ **Other Agents** - To be implemented
+An autonomous AI-powered system that reconciles curated literature knowledge (RegulonDB) with high-throughput expression data (M3D) to validate, contradict, or discover gene regulatory relationships in *E. coli*.
 
 ---
 
-## Reviewer Agent
+## Overview
 
-The Reviewer Agent synthesizes statistical evidence with biological literature to classify gene regulatory edges into 7 categories:
+The transcriptional regulatory network of *E. coli* K-12 is the most well-characterized biological network, yet knowledge is fragmented between:
 
-1. **Validated** - Strong literature + strong data + context match
-2. **Active** - Strong data despite context mismatch
-3. **Condition-Silent** - Literature supported but weak data (context explains)
-4. **Inactive-Context-Mismatch** - No activity due to wrong conditions
-5. **Novel Hypothesis** - Strong data, no literature (potential discovery)
-6. **Probable False Positive** - Weak literature, no data (zombie science)
-7. **Unsupported** - No evidence from either source
+- **Literature Prior** (RegulonDB): Curated assertions from decades of molecular biology
+- **Data Landscape** (M3D): High-throughput expression measurements across 1000+ conditions
 
-### Inputs
+This system bridges these worlds using a **LangGraph cyclic workflow** with **LLM-powered reasoning** (Google Gemini) for nuanced biological interpretation.
 
-The Reviewer Agent reads from AgentState:
+---
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                      LangGraph Workflow                          │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│   ┌──────────┐    ┌─────────────┐    ┌────────────────┐         │
+│   │  Loader  │───▶│Batch Manager│───▶│ Context Agent  │         │
+│   │(ingest)  │    │  (queue)    │    │  (🤖 LLM)      │         │
+│   └──────────┘    └─────────────┘    └───────┬────────┘         │
+│                          ▲                    │                  │
+│                          │                    ▼                  │
+│                   ┌──────┴──────┐    ┌────────────────┐         │
+│                   │  Reconciler │◀───│ Analysis Agent │         │
+│                   │  (🤖 LLM)   │    │   (CLR/MI)     │         │
+│                   └─────────────┘    └────────────────┘         │
+│                          │                                       │
+│                          ▼                                       │
+│                       [END]                                      │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Node Responsibilities
+
+| Node | LLM | Description |
+|------|-----|-------------|
+| **Loader** | ❌ | Ingests RegulonDB network, gene mappings, M3D expression matrix & metadata |
+| **Batch Manager** | ❌ | Manages TF processing queue, prevents memory overflow |
+| **Context Agent** | ✅ | Intelligently filters M3D samples based on TF biological function |
+| **Analysis Agent** | ❌ | Computes Mutual Information & CLR z-scores (deterministic statistics) |
+| **Reconciler** | ✅ | Reasons about literature vs data discrepancies with biological insight |
 
 ```python
 # From Batch Manager
@@ -41,167 +58,270 @@ batch__current_tfs: List[str]  # TFs to process (e.g., ["b1334"])
 research__literature_edges: Dict[str, Dict[str, Dict]]
 # Structure: {tf_bnumber: {target_bnumber: {exists, effect, evidence_strength, ...}}}
 
-research__annotations: Dict[str, Dict]
-# Structure: {edge_id: {match, explanation, literature_conditions, dataset_conditions}}
+```
+DREAMingAgent/
+├── main.py                     # CLI entry point
+├── requirements.txt            # Dependencies
+├── src/
+│   ├── workflow.py             # LangGraph StateGraph orchestration
+│   ├── state.py                # AgentState schema & data classes
+│   ├── config.py               # System configuration (LLM toggle, thresholds)
+│   ├── nodes/
+│   │   ├── loader.py           # Data ingestion (RegulonDB + M3D)
+│   │   ├── batch_manager.py    # TF queue management
+│   │   ├── context_agent.py    # AI-powered sample filtering
+│   │   ├── analysis_agent.py   # CLR/MI statistical engine
+│   │   └── reconciler.py       # AI-powered reconciliation logic
+│   ├── llm/
+│   │   ├── client.py           # Google Gemini API wrapper
+│   │   └── prompts.py          # System prompts for AI reasoning
+│   └── utils/
+│       ├── parsers.py          # File parsers & synthetic data generator
+│       └── statistics.py       # MI, CLR, correlation functions
+├── examples/
+│   └── demo_analysis_agent.py  # Standalone CLR/MI demonstration
+└── tests/
+    └── test_analysis_agent.py  # Unit tests
+```
 
 # From Analysis Agent
 analysis__statistical_results: Dict[str, Dict[str, Dict]]
 # Structure: {tf_bnumber: {target_bnumber: {clr_zscore, mi, correlation, pvalue}}}
 
-analysis__tf_expression: Dict[str, Dict]
-# Structure: {tf_bnumber: {is_expressed, mean_expression, percentile}}
+## Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/DREAMingAgent.git
+cd DREAMingAgent
+
+# Create virtual environment
+python -m venv AgentVenv
+source AgentVenv/bin/activate  # On Windows: AgentVenv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
 ```
 
-### Outputs
+### For LLM Features (Optional)
 
-The Reviewer Agent updates AgentState:
-
-```python
-# Current batch results
-reviewer__edge_decisions: List[Dict]           # All decisions for current TF
-reviewer__tf_summaries: Dict[str, str]         # TF-level analysis notes
-reviewer__comparative_analysis: Dict           # Cross-edge patterns
-
-# Accumulated across batches
-reviewer__reconciliation_log: List[Dict]       # All decisions (append)
-reviewer__zombie_candidates: List[Dict]        # Probable false positives
-reviewer__novel_hypotheses: List[Dict]         # Strong data, weak lit
+```bash
+export GEMINI_API_KEY="your-api-key-here"
 ```
 
-### Example Usage
+Get your API key from [Google AI Studio](https://aistudio.google.com/app/apikey).
 
-```python
-from src.state import create_initial_state
-from src.nodes.reviewer_agent import reviewer_agent_node
+---
 
-# Create state with sample data
-state = create_initial_state()
-state["batch__current_tfs"] = ["b1334"]
-state["research__literature_edges"] = {
-    "b1334": {
-        "b0929": {
-            "exists": True,
-            "effect": "activation",
-            "evidence_strength": "strong"
-        }
-    }
+## Usage
+
+### Quick Start (Synthetic Data)
+
+```bash
+# Without LLM (rule-based reasoning)
+python main.py --synthetic --no-llm --output output/
+
+# With LLM (AI-powered reasoning)
+export GEMINI_API_KEY="your-key"
+python main.py --synthetic --output output/
+```
+
+### Test Coverage
+
+```bash
+python main.py \
+  --network data/network_tf_gene.txt \
+  --genes data/gene_product.txt \
+  --expression data/E_coli_v4_Build_6_exps.tab \
+  --metadata data/E_coli_v4_Build_6_meta.tab \
+  --output results/
+```
+
+### CLI Options
+
+| Flag | Description |
+|------|-------------|
+| `--synthetic`, `-s` | Run with generated test data |
+| `--no-llm` | Disable LLM reasoning (use rule-based fallbacks) |
+| `--llm-model MODEL` | LLM model to use (default: `gemini-2.5-flash`) |
+| `--output`, `-o` | Output directory (default: `output/`) |
+| `--verbose`, `-v` | Enable debug logging |
+| `--max-iterations` | Max processing iterations (default: 100) |
+
+---
+
+## Core Algorithm: CLR/MI
+
+The Analysis Agent implements the **Context Likelihood of Relatedness (CLR)** algorithm:
+
+1. **Mutual Information (MI)**: Captures non-linear dependencies between TF and target gene expression
+   
+   \[I(X;Y) = \sum_{x,y} p(x,y) \log \frac{p(x,y)}{p(x)p(y)}\]
+
+2. **CLR Z-score Normalization**: Distinguishes direct from indirect regulation
+   
+   \[z = \max\left(0, \frac{\text{MI} - \mu}{\sigma}\right)\]
+
+3. **Significance Thresholds**:
+   - **High**: z ≥ 4.0
+   - **Moderate**: z ≥ 2.0
+   - **Low**: z < 1.0
+
+---
+
+## Reconciliation Logic
+
+The system classifies each TF→Gene edge into four categories:
+
+| Status | Literature | Data | Interpretation |
+|--------|------------|------|----------------|
+| **Validated** | Strong | High z-score | Confirmed active regulation |
+| **Condition-Silent** | Strong | Low z-score | Real binding, but TF inactive in sampled conditions |
+| **Probable False Positive** | Weak | Low z-score | Candidate for database pruning |
+| **Novel Hypothesis** | None | High z-score | New discovery for experimental validation |
+
+### LLM-Enhanced Reasoning
+
+When LLM is enabled, the Reconciler provides nuanced biological interpretation:
+
+```json
+{
+  "status": "ConditionSilent",
+  "confidence": 0.85,
+  "reasoning": "FNR→narG has strong physical evidence (DNA footprinting), but 
+               the M3D compendium is dominated by aerobic conditions where FNR 
+               is inactive. The low z-score reflects TF inactivity, not absence 
+               of regulation.",
+  "recommendation": "Re-analyze using only anaerobic samples."
 }
-state["analysis__statistical_results"] = {
-    "b1334": {
-        "b0929": {"clr_zscore": 4.2, "mi": 0.8}
-    }
-}
+```
 
-# Run reviewer
-result = reviewer_agent_node(state)
-print(result["reviewer__edge_decisions"])
+---
+
+## Output Files
+
+### `reconciled_network.tsv`
+
+| Column | Description |
+|--------|-------------|
+| Source_TF | Transcription factor ID |
+| Target_Gene | Target gene ID |
+| RegulonDB_Evidence | Literature evidence level (Strong/Weak/Unknown) |
+| RegulonDB_Effect | Regulation type (+/-/+-/?) |
+| M3D_Z_Score | CLR-corrected z-score |
+| M3D_MI | Raw mutual information |
+| Reconciliation_Status | Validated/ConditionSilent/ProbableFalsePos/NovelHypothesis |
+| Context_Tags | Experimental context used |
+| Notes | AI reasoning or rule-based explanation |
+
+### `reconciliation_results.json`
+
+```json
+{
+  "reconciliation_log": [...],
+  "novel_hypotheses": [...],
+  "false_positive_candidates": [...],
+  "summary": {
+    "total_edges": 113,
+    "novel_count": 1,
+    "false_positive_count": 28
+  }
+}
 ```
 
 ---
 
 ## Testing
 
-### Run All Tests
-
 ```bash
-# Activate virtual environment
-source ../aienv/bin/activate
+# Run all unit tests
+pytest -v
 
-# Install dependencies
-pip install -r requirements.txt
+# Run specific test class
+pytest tests/test_analysis_agent.py::TestCLRCalculation -v
 
-# Run all tests
-pytest tests/ -v
-
-# Run specific test suite
-pytest tests/test_reviewer_agent.py -v          # Rule-based tests (23 tests)
-pytest tests/test_reviewer_agent_llm.py -v      # LLM integration tests (13 tests)
-```
-
-### Test Coverage
-
-**[tests/test_reviewer_agent.py](tests/test_reviewer_agent.py)** (23 tests)
-- Decision tree logic for all 7 categories
-- Data strength classification (CLR thresholds)
-- Subgraph data preparation
-- Rule-based fallback
-- Post-processing and state updates
-- Edge cases and boundary conditions
-
-**[tests/test_reviewer_agent_llm.py](tests/test_reviewer_agent_llm.py)** (13 tests)
-- LLM invocation with mocked responses
-- Pydantic structured output validation
-- Prompt construction
-- Graceful fallback when LLM fails
-- Explanation length validation (100-1500 chars)
-
----
-
-## Project Structure
-
-```
-DREAMingAgent/
-├── README.md
-├── requirements.txt
-├── src/
-│   ├── state.py                    # AgentState schema
-│   ├── llm_config.py               # Argonne LLM initialization
-│   ├── nodes/
-│   │   ├── __init__.py
-│   │   └── reviewer_agent.py       # Reviewer Agent implementation
-│   └── utils/
-│       └── inference_auth_token.py # Globus authentication
-└── tests/
-    ├── __init__.py
-    ├── test_reviewer_agent.py      # Rule-based tests
-    └── test_reviewer_agent_llm.py  # LLM integration tests
+# Demo the Analysis Agent in isolation
+python examples/demo_analysis_agent.py
 ```
 
 ---
 
-## Dependencies
+## Data Sources
 
-Core:
-- `langgraph>=0.2.0` - Workflow orchestration
-- `langchain>=0.3.0`, `langchain-openai>=0.1.0` - LLM integration
-- `pydantic>=2.0.0` - Structured output validation
+### RegulonDB (Literature Prior)
+- **Version**: v13.5+ recommended
+- **Files**: `network_tf_gene.txt`, `gene_product.txt`
+- **URL**: https://regulondb.ccg.unam.mx/
 
-Data & Analysis:
-- `pandas>=2.0.0` - Data processing
-- `networkx>=3.0` - Graph structures
-- `scikit-learn>=1.3.0` - Statistical analysis
-
-Auth & Testing:
-- `globus-sdk>=3.0.0` - Argonne API authentication
-- `pytest>=7.0.0`, `pytest-mock>=3.12.0` - Testing
+### M3D (Data Landscape)
+- **Version**: E. coli Build 6 (v4)
+- **Files**: `E_coli_v4_Build_6_exps.tab`, `E_coli_v4_Build_6_meta.tab`
+- **URL**: http://m3d.mssm.edu/
 
 ---
 
-## Key Features
+## Configuration
 
-### Hybrid Decision System
-- **Primary**: Argonne-hosted LLM with structured JSON output (Pydantic validation)
-- **Fallback**: Deterministic rule-based decision tree
-- **Temperature**: 0.1 for reproducibility
-- **Graceful degradation**: Never fails completely
+Environment variables:
 
-### Subgraph-Level Processing
-Processes one TF + all its targets together for:
-- Cross-edge comparative analysis
-- TF-level pattern detection
-- Zombie science identification
-
-### Scientific Explanations
-All decisions include 100-1500 character scientific justifications with:
-- Specific CLR scores and MI values
-- Context mismatch explanations
-- Regulatory mechanism hypotheses
+| Variable | Description |
+|----------|-------------|
+| `GEMINI_API_KEY` | Google Gemini API key for LLM features |
+| `DREAMING_USE_LLM` | Enable/disable LLM (`true`/`false`) |
+| `DREAMING_LLM_MODEL` | Model name (default: `gemini-2.5-flash`) |
 
 ---
 
-## Next Steps
+## Extending the System
 
-1. Implement remaining agents (Loader, Batch Manager, Research, Analysis)
-2. Create workflow.py for LangGraph orchestration
-3. Add end-to-end integration tests
-4. Test with real RegulonDB + M3D data
+### Adding New TF Context Knowledge
+
+Edit `src/nodes/context_agent.py`:
+
+```python
+TF_CONDITION_MAP = {
+    "your_tf": ["relevant", "condition", "keywords"],
+    ...
+}
+```
+
+### Custom Reconciliation Rules
+
+Edit thresholds in `src/nodes/reconciler.py`:
+
+```python
+HIGH_DATA_SUPPORT = 4.0      # z-score threshold
+MODERATE_DATA_SUPPORT = 2.0
+LOW_DATA_SUPPORT = 1.0
+```
+
+### Adding New LLM Prompts
+
+Edit `src/llm/prompts.py` to customize AI reasoning behavior.
+
+---
+
+## License
+
+MIT License
+
+---
+
+## Citation
+
+If you use this tool in your research, please cite:
+
+```bibtex
+@software{dreaming_agent,
+  title = {DREAMing Agent: Agentic Reconciliation of Biological Literature and High-Throughput Data},
+  author = {Chandra, Marcus},
+  year = {2024},
+  url = {https://github.com/yourusername/DREAMingAgent}
+}
+```
+
+---
+
+## Contact
+
+Marcus Chandra - DREAMing Agent Team
