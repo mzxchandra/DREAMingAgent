@@ -104,22 +104,46 @@ def analysis_agent_node(state: AgentState) -> Dict[str, Any]:
     # Store results
     analysis_results = state.get("analysis_results", {}).copy()
     
+    regulondb_to_bnumber = state.get("regulondb_to_bnumber", {})
+    tf_expression_meta = {}
+
     # Process each TF in the batch
-    for tf in tf_batch:
-        logger.info(f"Processing TF: {tf}")
+    for tf_id in tf_batch:
+        logger.info(f"Processing TF: {tf_id}")
         
-        tf_result = _analyze_single_tf(
-            tf=tf,
+        # Resolve ID for expression matrix (needs b-number or gene name)
+        # Try mapping first, then fallback to original ID
+        lookup_id = regulondb_to_bnumber.get(tf_id, tf_id).lower()
+        
+        # If lookup_id not in matrix, try original ID lowercased
+        if lookup_id not in data_slice.index:
+            if tf_id.lower() in data_slice.index:
+                lookup_id = tf_id.lower()
+        
+        results = _analyze_single_tf(
+            tf_id=tf_id, 
+            lookup_id=lookup_id,
             data_slice=data_slice,
             literature_graph=literature_graph,
             n_samples=len(available_samples)
         )
+        analysis_results[tf_id] = results
         
-        analysis_results[tf] = tf_result
+        # Store resolved expression profile for Reviewer
+        if lookup_id in data_slice.index:
+             tf_vector = data_slice.loc[lookup_id].values
+             tf_expression_meta[tf_id] = {
+                 "mean_expression": float(np.mean(tf_vector)),
+                 "is_expressed": float(np.mean(tf_vector)) >= MIN_TF_EXPRESSION,
+                 "percentile": float(np.percentile(tf_vector, 50))
+             }
     
     logger.info(f"Analysis complete for {len(tf_batch)} TFs")
     
-    return {"analysis_results": analysis_results}
+    return {
+        "analysis_results": analysis_results,
+        "tf_expression_meta": tf_expression_meta
+    }
 
 
 # ============================================================================
@@ -127,7 +151,8 @@ def analysis_agent_node(state: AgentState) -> Dict[str, Any]:
 # ============================================================================
 
 def _analyze_single_tf(
-    tf: str,
+    tf_id: str,
+    lookup_id: str,
     data_slice: pd.DataFrame,
     literature_graph: Any,
     n_samples: int
@@ -136,7 +161,8 @@ def _analyze_single_tf(
     Analyze regulatory relationships for a single TF.
     
     Args:
-        tf: TF identifier (b-number)
+        tf_id: Original TF identifier (RegulonDB ID)
+        lookup_id: Resolved ID for expression matrix (b-number)
         data_slice: Expression matrix slice (genes x samples)
         literature_graph: NetworkX graph of literature interactions
         n_samples: Number of samples being analyzed
@@ -145,18 +171,18 @@ def _analyze_single_tf(
         Dictionary mapping target genes to their analysis results
     """
     # Check if TF exists in the expression data
-    if tf not in data_slice.index:
-        logger.warning(f"TF {tf} not found in expression matrix")
+    if lookup_id not in data_slice.index:
+        logger.warning(f"TF {tf_id} (mapped to {lookup_id}) not found in expression matrix")
         return {"error": "TF_NOT_IN_MATRIX"}
     
     # Get TF expression vector
-    tf_vector = data_slice.loc[tf].values.astype(np.float64)
+    tf_vector = data_slice.loc[lookup_id].values.astype(np.float64)
     
     # Check if TF is expressed (detection call)
     tf_mean_expression = np.mean(tf_vector)
     if tf_mean_expression < MIN_TF_EXPRESSION:
         logger.info(
-            f"TF {tf} has low expression (mean={tf_mean_expression:.2f}). "
+            f"TF {tf_id} (mapped to {lookup_id}) has low expression (mean={tf_mean_expression:.2f}). "
             "May be contextually inactive."
         )
         return {
@@ -165,7 +191,9 @@ def _analyze_single_tf(
         }
     
     # Get target gene matrix (all genes except the TF itself)
-    target_genes = [g for g in data_slice.index if g != tf]
+    # Get target gene matrix (all genes except the TF itself)
+    # Use lookup_id to exclude the TF from its own targets in the matrix
+    target_genes = [g for g in data_slice.index if g != lookup_id]
     target_matrix = data_slice.loc[target_genes].values.astype(np.float64)
     
     # Compute MI and CLR z-scores
@@ -195,9 +223,11 @@ def _analyze_single_tf(
         
         # Only store significant results to save memory
         # But always store results for known literature targets
+        # But always store results for known literature targets
+        # Use tf_id for literature graph lookup (nodes are RDB IDs)
         is_literature_target = (
             literature_graph is not None and 
-            literature_graph.has_edge(tf, gene)
+            literature_graph.has_edge(tf_id, gene)
         )
         
         if z >= Z_SCORE_THRESHOLD_MODERATE or is_literature_target:
@@ -220,7 +250,7 @@ def _analyze_single_tf(
     }
     
     logger.info(
-        f"TF {tf}: {results['_summary']['significant_high']} high, "
+        f"TF {tf_id}: {results['_summary']['significant_high']} high, "
         f"{results['_summary']['significant_moderate']} moderate significance hits"
     )
     

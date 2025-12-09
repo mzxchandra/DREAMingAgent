@@ -11,7 +11,7 @@ from src.utils.inference_auth_token import get_access_token
 
 def create_argonne_llm(
     base_url: str = "https://inference-api.alcf.anl.gov/resource_server/sophia/vllm/v1",
-    model_name: str = "openai/gpt-oss-20b",
+    model_name: str = "openai/gpt-oss-120b",
     temperature: float = 0.1,
     max_tokens: int = 8192
 ) -> ChatOpenAI:

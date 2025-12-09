@@ -95,7 +95,7 @@ def reviewer_agent_node(state: AgentState) -> Dict[str, Any]:
         review_result = apply_rule_based_review(edges_data, tf_bnumber, state)
         method = "rules"
 
-    return post_process_decisions(review_result, state, tf_bnumber, method)
+    return post_process_decisions(review_result, state, tf_bnumber, method, edges_data)
 
 
 def prepare_subgraph_data(state: AgentState, tf_bnumber: str) -> List[Dict[str, Any]]:
@@ -528,7 +528,8 @@ def post_process_decisions(
     review: SubgraphReview,
     state: AgentState,
     tf_bnumber: str,
-    method: str
+    method: str,
+    original_edges: List[Dict] = []
 ) -> Dict[str, Any]:
     """
     Aggregates decisions, identifies zombies/novel hypotheses, updates state.
@@ -547,7 +548,40 @@ def post_process_decisions(
     for decision in edge_decisions:
         # Convert to standard reconciliation log format
         tf_name = bnumber_to_name.get(tf_bnumber, tf_bnumber)
-        target = decision["edge_id"].split("→")[1]
+        
+        # Robust edge_id parsing
+        eid = decision["edge_id"]
+        if "→" in eid:
+            target = eid.split("→")[1]
+        elif "->" in eid:
+            target = eid.split("->")[1]
+        else:
+            # Fallback: Check if it matches "Edge N" pattern (LLM often does this)
+            if eid.lower().startswith("edge"):
+                try:
+                    # Extract number
+                    parts = eid.replace(":", "").split()
+                    for p in parts:
+                         if p.isdigit():
+                             idx = int(p) - 1 # 1-based to 0-based
+                             if 0 <= idx < len(original_edges):
+                                 target = original_edges[idx]["target"]
+                                 logger.info(f"Resolved '{eid}' to target {target} using index {idx}")
+                                 break
+                except Exception as e:
+                    logger.warning(f"Failed to parse index from {eid}: {e}")
+
+            # If still not found, try space separation fallback
+            if 'target' not in locals():
+                parts = eid.split()
+                if len(parts) >= 2:
+                    target = parts[1] # "TF Target"
+                else:
+                    target = "unknown_target"
+                    logger.warning(f"Could not parse target from edge_id: {eid}")
+        
+        target = target.strip() # Remove any whitespace
+
         target_name = bnumber_to_name.get(target, target)
 
         log_entry = {
