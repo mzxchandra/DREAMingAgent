@@ -131,6 +131,9 @@ class AgentState(TypedDict):
     # Reverse mapping: b-number to gene name
     bnumber_to_gene_name: Dict[str, str]
     
+    # RegulonDB ID to b-number mapping (for TF lookup)
+    regulondb_to_bnumber: Dict[str, str]
+    
     # The Data Landscape (M3D) - Expression Matrix
     # Rows: Genes (indexed by b-number), Columns: Experiments
     expression_matrix: pd.DataFrame
@@ -186,6 +189,7 @@ def create_initial_state() -> AgentState:
         literature_graph=nx.DiGraph(),
         gene_name_to_bnumber={},
         bnumber_to_gene_name={},
+        regulondb_to_bnumber={},
         expression_matrix=pd.DataFrame(),
         metadata=pd.DataFrame(),
         tf_queue=[],

@@ -132,17 +132,32 @@ def generate_structured_response(
         # Try to extract JSON from response
         # Handle cases where model wraps JSON in markdown code blocks
         text = response.strip()
+        
+        # Remove markdown code blocks
         if text.startswith("```json"):
             text = text[7:]
-        if text.startswith("```"):
+        elif text.startswith("```"):
             text = text[3:]
+        
         if text.endswith("```"):
             text = text[:-3]
         
-        return json.loads(text.strip())
+        # Clean up the text
+        text = text.strip()
+        
+        # Try to find JSON object boundaries
+        start_idx = text.find('{')
+        end_idx = text.rfind('}')
+        
+        if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
+            json_text = text[start_idx:end_idx+1]
+            return json.loads(json_text)
+        else:
+            # Fallback: try parsing the whole text
+            return json.loads(text)
         
     except json.JSONDecodeError as e:
         logger.warning(f"Failed to parse LLM JSON response: {e}")
-        logger.debug(f"Raw response: {response}")
+        logger.debug(f"Raw response (first 500 chars): {response[:500]}")
         return None
 
