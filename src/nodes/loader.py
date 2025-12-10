@@ -88,7 +88,7 @@ def loader_node(state: AgentState) -> Dict[str, Any]:
     # --- 1. Load Gene Product Mapping (Rosetta Stone) ---
     logger.info("Loading gene name to b-number mapping...")
     try:
-        gene_name_to_bnumber, bnumber_to_gene_name, _ = parse_gene_product_mapping(
+        gene_name_to_bnumber, bnumber_to_gene_name, regulondb_to_bnumber = parse_gene_product_mapping(
             regulondb_gene_product_path
         )
     except Exception as e:
@@ -183,6 +183,7 @@ def loader_node(state: AgentState) -> Dict[str, Any]:
         "literature_graph": literature_graph,
         "gene_name_to_bnumber": gene_name_to_bnumber,
         "bnumber_to_gene_name": bnumber_to_gene_name,
+        "regulondb_to_bnumber": regulondb_to_bnumber,
         "expression_matrix": expression_matrix,
         "metadata": metadata,
         "tf_queue": tf_queue,
