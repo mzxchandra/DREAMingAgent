@@ -50,10 +50,13 @@ class MetricASabotage(BaseMetric):
         
         # 3. Inject False Positives (Sabotage)
         # We inject edges that do NOT exist in RegulonDB (presumed false)
+        focus_tf = self.config.limit_tfs[0] if self.config.limit_tfs else None
+        
         G_injected, injected_ids = inject_false_edges(
             G, 
             n_edges=self.config.sabotage_n_false_positives,
-            evidence_level='W'
+            evidence_level='W',
+            focus_node=focus_tf
         )
         
         # 4. Save Sabotaged Network
@@ -70,7 +73,8 @@ class MetricASabotage(BaseMetric):
             "expression_path": expression_path,
             "metadata_path": metadata_path,
             "injected_ids": injected_ids,
-            "deleted_ids": set() # We are skipping deletion for now as recovering derived edges is hard without context
+            "deleted_ids": set(),
+            "ground_truth_remaining": set(G.edges[u, v]['edge_id'] for u, v in G.edges())
         }
 
     def run_evaluation(self, data: Dict[str, Any]) -> Dict[str, Any]:
@@ -96,8 +100,8 @@ class MetricASabotage(BaseMetric):
 
     def compute_scores(self, results: Dict[str, Any]) -> Dict[str, float]:
         """Score FP detection and Edge Recovery."""
-        injected = self.meta["injected_ids"]
-        deleted = self.meta["deleted_ids"]
+        injected = set(self.meta["injected_ids"])
+        deleted = set(self.meta["deleted_ids"])
         
         # 1. FP Detection Analysis
         # We want the system to flag 'injected' edges as "ProbableFalsePositive"

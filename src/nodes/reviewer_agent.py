@@ -113,9 +113,6 @@ def prepare_subgraph_data(state: AgentState, tf_bnumber: str) -> List[Dict[str, 
 
     # Get stats for this TF
     tf_stats = analysis_results.get(tf_bnumber, {})
-    if tf_stats:
-        keys_sample = list(tf_stats.keys())[:3]
-        logger.info(f"DEBUG: tf_stats keys sample for {tf_bnumber}: {keys_sample}")
 
     # Get literature targets for this TF
     lit_targets = set()
@@ -169,11 +166,8 @@ def prepare_subgraph_data(state: AgentState, tf_bnumber: str) -> List[Dict[str, 
                  if str(key).startswith("_"): continue
                  # Check for bnumber inside key (robust check)
                  if target_bnumber in str(key):
-                     logger.info(f"DEBUG: Fuzzy matched target {target_bnumber} to key {key}")
                      stat_data = tf_stats[key]
                      break
-             else:
-                 logger.debug(f"DEBUG: No fuzzy match for {target_bnumber} in {len(tf_stats)} keys")
         
         if not isinstance(stat_data, dict):
             stat_data = {
@@ -340,8 +334,8 @@ def format_edge_data_for_llm(edges: List[Dict]) -> str:
 - Required Conditions: {', '.join(lit.get('conditions_required', ['None']))}
 
 **Statistical Analysis:**
-- CLR Z-score: {stats.get('clr_zscore', 0.0):.4f}
-- Mutual Information: {stats.get('mi', 0.0):.4f}
+- CLR Z-score: {stats.get('z_score', stats.get('m3d_z_score', 0.0)):.4f}
+- Mutual Information: {stats.get('mi', stats.get('m3d_mi', 0.0)):.4f}
 - Correlation: {stats.get('correlation', 0.0):.4f}
 
 **Context:**
@@ -458,8 +452,9 @@ def apply_decision_tree(lit: Dict, stats: Dict, ctx: Dict) -> Tuple[str, str]:
     - ProbableFalsePos: Weak literature + No data support
     - NovelHypothesis: No literature + High data support
     """
-    clr = stats.get("clr_zscore", 0.0)
-    mi = stats.get("mi", 0.0)
+    # Correctly map keys from AnalysisAgent
+    clr = stats.get("z_score", stats.get("m3d_z_score", stats.get("clr_zscore", 0.0)))
+    mi = stats.get("mi", stats.get("m3d_mi", 0.0))
     lit_exists = lit.get("exists", False)
     lit_strong = lit.get("evidence_strength") in ["strong", "confirmed"]
     lit_weak = lit.get("evidence_strength") == "weak"

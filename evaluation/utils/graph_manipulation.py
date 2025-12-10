@@ -35,12 +35,13 @@ def inject_false_edges(
     graph: nx.DiGraph, 
     n_edges: int, 
     evidence_level: str = "W", 
-    effect: str = "+"
+    effect: str = "+",
+    focus_node: str = None
 ) -> Tuple[nx.DiGraph, List[str]]:
     """Inject false positive edges into the graph.
     
-    Returns:
-        Tuple of (modified_graph, list_of_injected_edge_ids)
+    Args:
+        focus_node: If provided, all injected edges will have this node as SOURCE.
     """
     G = graph.copy()
     nodes = list(G.nodes())
@@ -53,8 +54,12 @@ def inject_false_edges(
     max_attempts = n_edges * 100
     
     while len(injected_edges) < n_edges and attempts < max_attempts:
-        source = np.random.choice(nodes)
-        target = np.random.choice(nodes)
+        if focus_node and focus_node in nodes:
+            source = focus_node
+            target = np.random.choice(nodes)
+        else:
+            source = np.random.choice(nodes)
+            target = np.random.choice(nodes)
         
         if source != target and not G.has_edge(source, target):
             # Create plausible attributes
