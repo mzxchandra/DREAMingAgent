@@ -129,6 +129,7 @@ Examples:
         export_results
     )
     from src.config import AgentConfig, set_config, disable_llm
+    from src.alcf_config import get_alcf_config
     
     # Configure LLM usage
     if args.no_llm:
@@ -136,6 +137,11 @@ Examples:
         disable_llm()
     else:
         logger.info(f"LLM reasoning ENABLED - using {args.llm_model} (ALCF/Argonne)")
+        
+        # Update ALCF Config to match CLI argument
+        alcf_config = get_alcf_config()
+        alcf_config.llm_model = args.llm_model
+        
         config = AgentConfig(
             use_llm=True,
             llm_model=args.llm_model,

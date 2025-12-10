@@ -25,7 +25,7 @@ class ALCFConfig:
     llm_model: str = field(
         default_factory=lambda: os.getenv(
             "RESEARCH_AGENT_LLM_MODEL",
-            "meta-llama/Meta-Llama-3.1-8B-Instruct"
+            "openai/gpt-oss-20b"
         )
     )
 

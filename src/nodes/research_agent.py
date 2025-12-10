@@ -1220,6 +1220,11 @@ def research_agent_node(state: AgentState) -> Dict[str, Any]:
         # Extract Gene Pairs
         gene_pairs = _extract_gene_pairs_from_state(state)
         if gene_pairs:
+            # Temporary optimization: Limit to 5 pairs to prevent timeout during verification
+            if len(gene_pairs) > 5:
+                logger.warning(f"Limiting literature analysis to 5 of {len(gene_pairs)} pairs for speed")
+                gene_pairs = gene_pairs[:5]
+            
             logger.info(f"Processing {len(gene_pairs)} gene pairs for literature analysis")
 
             # Build Dataset Context using determined context

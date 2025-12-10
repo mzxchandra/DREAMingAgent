@@ -21,7 +21,7 @@ def main():
     print(f"Total documents: {count}")
     
     if count > 0:
-        query = "ppgpp regulation"
+        query = "ryhb regulation"
         print(f"\nQuerying for: '{query}'...")
         results = vs.query(query, n_results=1)
         

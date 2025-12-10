@@ -104,9 +104,13 @@ class ALCFClient:
         Returns:
             Generated text content
         """
+        from loguru import logger
+        actual_model = model or self.llm_model
+        logger.info(f"LLM Request -> {actual_model} (Temp: {temperature}, MaxT: {max_tokens})")
+        
         client = self._get_client()
         response = client.chat.completions.create(
-            model=model or self.llm_model,
+            model=actual_model,
             messages=messages,
             temperature=temperature if temperature is not None else self.temperature,
             max_tokens=max_tokens if max_tokens is not None else self.max_tokens,

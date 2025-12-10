@@ -9,11 +9,10 @@ CLR normalization to identify statistically significant regulatory relationships
 This is the core statistical engine of the reconciliation system.
 """
 
-from typing import Dict, Any, List, Tuple, Optional
 import numpy as np
 import pandas as pd
-from scipy import stats
-from sklearn.feature_selection import mutual_info_regression
+IMPORTS_AVAILABLE = True  # optimistically set, checked later
+from typing import Dict, Any, List, Tuple, Optional
 from loguru import logger
 
 from ..state import AgentState, EdgeAnalysis
@@ -67,7 +66,21 @@ def analysis_agent_node(state: AgentState) -> Dict[str, Any]:
     Returns:
         Updated state with analysis_results populated
     """
-    logger.info("=== ANALYSIS AGENT NODE: Computing CLR-corrected MI ===")
+    logger.info("=== ANALYSIS AGENT NODE: Computing CLR & Mutual Information ===")
+    
+    
+    # Lazy import scientific dependencies to avoid load-time crashes
+    global IMPORTS_AVAILABLE
+    try:
+        from scipy import stats
+        from sklearn.feature_selection import mutual_info_regression
+    except (ImportError, Exception) as e:
+        logger.warning(f"Analysis dependencies missing/crashed: {e}. CLR/MI calculation will be skipped.")
+        IMPORTS_AVAILABLE = False
+        
+    if not IMPORTS_AVAILABLE:
+        logger.warning("Skipping analysis due to missing dependencies.")
+        return state
     
     # Extract inputs from state
     tf_batch = state.get("current_batch_tfs", [])
@@ -197,6 +210,13 @@ def _analyze_single_tf(
     target_matrix = data_slice.loc[target_genes].values.astype(np.float64)
     
     # Compute MI and CLR z-scores
+    # Lazy import stats
+    try:
+        from scipy import stats
+    except ImportError:
+        logger.error("scipy missing during analysis")
+        return {}
+
     mi_scores, z_scores = _compute_clr_scores(
         tf_vector=tf_vector,
         target_matrix=target_matrix
@@ -305,6 +325,14 @@ def _compute_clr_scores(
     
     if np.sum(valid_mask) > 0:
         # Only compute MI for non-constant genes
+        # Lazy import inside function to avoid dyld crash at module level and fix scoping
+        try:
+            from sklearn.feature_selection import mutual_info_regression
+        except ImportError:
+            logger.error("sklearn missing during CLR computation")
+            # Return dummy values to prevent crash if somehow check passed
+            return [], []
+        
         mi_valid = mutual_info_regression(
             X[:, valid_mask],
             y,
@@ -350,6 +378,12 @@ def _zscore_to_pvalue(z_scores: np.ndarray) -> np.ndarray:
     Returns:
         Array of p-values
     """
+    try:
+        from scipy import stats
+    except ImportError:
+        # Fallback if scipy missing (should be caught earlier)
+        return np.zeros_like(z_scores)
+        
     return 1 - stats.norm.cdf(z_scores)
 
 

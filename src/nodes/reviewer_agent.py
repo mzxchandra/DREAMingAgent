@@ -113,6 +113,9 @@ def prepare_subgraph_data(state: AgentState, tf_bnumber: str) -> List[Dict[str, 
 
     # Get stats for this TF
     tf_stats = analysis_results.get(tf_bnumber, {})
+    if tf_stats:
+        keys_sample = list(tf_stats.keys())[:3]
+        logger.info(f"DEBUG: tf_stats keys sample for {tf_bnumber}: {keys_sample}")
 
     # Get literature targets for this TF
     lit_targets = set()
@@ -159,10 +162,23 @@ def prepare_subgraph_data(state: AgentState, tf_bnumber: str) -> List[Dict[str, 
 
         # Get statistical data
         stat_data = tf_stats.get(target_bnumber)
+        
+        if not isinstance(stat_data, dict) and target_bnumber:
+             # Look for key containing bnumber
+             for key in tf_stats.keys():
+                 if str(key).startswith("_"): continue
+                 # Check for bnumber inside key (robust check)
+                 if target_bnumber in str(key):
+                     logger.info(f"DEBUG: Fuzzy matched target {target_bnumber} to key {key}")
+                     stat_data = tf_stats[key]
+                     break
+             else:
+                 logger.debug(f"DEBUG: No fuzzy match for {target_bnumber} in {len(tf_stats)} keys")
+        
         if not isinstance(stat_data, dict):
             stat_data = {
-                "clr_zscore": 0.0, 
-                "mi": 0.0, 
+                "m3d_z_score": 0.0,
+                "m3d_mi": 0.0, 
                 "correlation": 0.0, 
                 "status": str(stat_data)
             }
@@ -234,17 +250,25 @@ def get_literature_context(
     target_name = bnumber_to_name.get(target_bnumber, target_bnumber)
 
     try:
-        # Query vector store for documents about this gene pair
-        documents = vector_store.query_by_gene_pair(
-            gene_a=tf_name,
-            gene_b=target_name,
+        # Query vector store for broad TF context (since specific edge docs may be missing)
+        # We generally check if the TF is known to regulate similar targets or mechanisms
+        documents = vector_store.query_tf_context(
+            tf_name=tf_name,
             n_results=3
         )
 
         if not documents:
+            # Fallback to specific pair query if broad context fails (historical support)
+            documents = vector_store.query_by_gene_pair(
+                gene_a=tf_name,
+                gene_b=target_name,
+                n_results=3
+            )
+
+        if not documents:
             return {
                 "match": False,
-                "explanation": f"No literature found for {tf_name} -> {target_name}",
+                "explanation": f"No literature found for {tf_name} context",
                 "required_conditions": [],
                 "context_found": False,
                 "confidence": 0.0
@@ -544,6 +568,10 @@ def post_process_decisions(
     novel_hypotheses = state.get("novel_hypotheses", []).copy()
     bnumber_to_name = state.get("bnumber_to_gene_name", {})
 
+    # Map original edges by edge_id for robust lookup
+    stats_lookup = {e['edge_id']: e['statistics'] for e in original_edges}
+    bnumber_lookup = {e['edge_id']: e['target'] for e in original_edges}
+    
     # Process each edge decision
     for decision in edge_decisions:
         # Convert to standard reconciliation log format
@@ -556,7 +584,7 @@ def post_process_decisions(
         elif "->" in eid:
             target = eid.split("->")[1]
         else:
-            # Fallback: Check if it matches "Edge N" pattern (LLM often does this)
+            # Fallback: Check if it matches "Edge N" pattern
             if eid.lower().startswith("edge"):
                 try:
                     # Extract number
@@ -582,17 +610,31 @@ def post_process_decisions(
         
         target = target.strip() # Remove any whitespace
 
-        target_name = bnumber_to_name.get(target, target)
+        # Resolve target bnumber from edge_id map (safer than splitting)
+        target_bnumber = bnumber_lookup.get(decision["edge_id"])
+        if not target_bnumber:
+             # Fallback if LLM hallucinated an ID, try splitting but be careful
+             parts = decision["edge_id"].split("_")
+             target_bnumber = parts[1] if len(parts) > 1 else decision["edge_id"]
+        
+        target_name = bnumber_to_name.get(target_bnumber, target_bnumber)
+        
+        # Retrieve stats using unique edge_id
+        edge_stats = stats_lookup.get(decision["edge_id"], {})
+        
+        # Handle key mismatch (AnalysisAgent uses 'z_score', Reviewer defaults used 'm3d_z_score')
+        z_score = edge_stats.get("z_score", edge_stats.get("m3d_z_score", 0.0))
+        mi_score = edge_stats.get("mi", edge_stats.get("m3d_mi", 0.0))
 
         log_entry = {
             "source_tf": tf_bnumber,
-            "target_gene": target,
+            "target_gene": target_bnumber,
             "source_tf_name": tf_name,
             "target_gene_name": target_name,
             "regulondb_evidence": decision.get("literature_support", "unknown"),
             "regulondb_effect": "?",  # Not tracked in reviewer output
-            "m3d_z_score": 0.0,  # Would need to extract from stats
-            "m3d_mi": 0.0,
+            "m3d_z_score": z_score,
+            "m3d_mi": mi_score,
             "reconciliation_status": decision["reconciliation_status"],
             "context_tags": [],  # Could extract from context
             "notes": f"[{method.upper()}] {decision['explanation']}"

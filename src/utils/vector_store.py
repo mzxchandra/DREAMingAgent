@@ -235,6 +235,37 @@ class LiteratureVectorStore:
             where=where_filter
         )
 
+    def query_tf_context(
+        self,
+        tf_name: str,
+        n_results: Optional[int] = None
+    ) -> List[SupportingDocument]:
+        """
+        Query for general regulatory context about a Transcription Factor.
+        
+        Args:
+            tf_name: Name of transcription factor
+            n_results: Number of results to return
+            
+        Returns:
+            List of SupportingDocument instances
+        """
+        query_text = f"{tf_name} regulation mechanism and targets"
+        
+        # Filter by gene_a and context type
+        where_filter = {
+            "$and": [
+                {"gene_a": tf_name},
+                {"interaction_type": "regulation_context"}
+            ]
+        }
+        
+        return self.query(
+            query_text=query_text,
+            n_results=n_results,
+            where=where_filter
+        )
+
     def load_from_json(self, json_path: str) -> None:
         """
         Load documents from a JSON file into the vector store.
