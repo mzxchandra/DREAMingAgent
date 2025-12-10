@@ -20,6 +20,9 @@ def main():
     parser.add_argument("--all", action="store_true", help="Run all metrics")
     parser.add_argument("--metric", nargs="+", choices=["A", "B", "D"], help="Run specific metrics")
     parser.add_argument("--output-dir", type=str, default="evaluation/outputs", help="Output directory")
+    parser.add_argument("--max-iterations", type=int, default=100, help="Max iterations per metric run")
+    parser.add_argument("--tfs", nargs="+", help="Specific TFs to process")
+    parser.add_argument("--llm-model", type=str, default="openai/gpt-oss-120b", help="LLM model to use")
     
     args = parser.parse_args()
     
@@ -29,7 +32,18 @@ def main():
         
     # Setup Config
     output_dir = Path(args.output_dir)
-    config = EvaluationConfig(output_dir=output_dir)
+    config = EvaluationConfig(
+        output_dir=output_dir, 
+        max_iterations=args.max_iterations,
+        limit_tfs=args.tfs if args.tfs else []
+    )
+    
+    # Configure LLM Model
+    from src.alcf_config import get_alcf_config, set_alcf_config, ALCFConfig
+    alcf_config = get_alcf_config()
+    alcf_config.llm_model = args.llm_model
+    set_alcf_config(alcf_config)
+    logger.info(f"Set ALCF LLM Model to: {args.llm_model}")
     
     # Select Metrics
     metrics_to_run = []
@@ -42,12 +56,12 @@ def main():
     
     # Dynamic Import to avoid heavy load if not running everything
     from .metrics.metric_a_sabotage import MetricASabotage
-    from .metrics.metric_b_synthetic import MetricBSynthetic
+    from .metrics.metric_b_real import MetricBReal
     from .metrics.metric_d_llm_judge import MetricDLLMJudge
     
     metric_map = {
         "A": MetricASabotage,
-        "B": MetricBSynthetic,
+        "B": MetricBReal,
         "D": MetricDLLMJudge
     }
     

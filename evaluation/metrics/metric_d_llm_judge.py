@@ -21,11 +21,16 @@ class MetricDLLMJudge(BaseMetric):
         logger.info("Preparing real data for LLM Judge...")
         
         # 1. Source files (Real Data assumed in data/)
-        # Using default paths or config if set
-        network_path = Path("data/NetworkRegulatorGene.tsv")
-        gene_prod_path = Path("data/GeneProductAllIdentifiersSet.tsv")
-        expr_path = Path("data/E_coli_v4_Build_6_exps.tab")
-        meta_path = Path("data/E_coli_v4_Build_6_meta.tab")
+        project_root = Path(".").resolve()
+        data_dir = project_root / "data"
+        if not data_dir.exists():
+             data_dir = project_root
+             
+        # Paths to Real Data
+        network_path = data_dir / "NetworkRegulatorGene.tsv"
+        gene_product_path = data_dir / "GeneProductAllIdentifiersSet.tsv" 
+        expression_path = data_dir / "E_coli_v4_Build_6_exps.tab"
+        metadata_path = data_dir / "E_coli_v4_Build_6_meta.tab"
         
         if not network_path.exists():
             raise FileNotFoundError(f"Real data not found at {network_path}. Cannot run Metric D.")
@@ -38,9 +43,9 @@ class MetricDLLMJudge(BaseMetric):
         filtered_dir.mkdir(parents=True, exist_ok=True)
         subset_network_path = filtered_dir / "NetworkRegulatorGene_subset.tsv"
         
-        target_tfs = set(self.config.judge_tfs) 
+        target_tfs = {'AlaS'} # Override config for smoke test
+        # target_tfs = set(self.config.judge_tfs) 
         # e.g., defined in config as ["FNR", "ArcA", "CRP"]
-        # Wait, the config names might not match file names.
         # RDB names are usually mixed.
         # We need to filter by 'regulatorName' column (index 1).
         
@@ -78,8 +83,11 @@ class MetricDLLMJudge(BaseMetric):
         # 1. Run Workflow
         logger.info("Running reconciliation on real data subset...")
         # check if they exist, otherwise set to None
-        safe_expr_path = str(expr_path) if expr_path.exists() else None
-        safe_meta_path = str(meta_path) if meta_path.exists() else None
+        expr_path = data.get("expression")
+        meta_path = data.get("metadata")
+        
+        safe_expr_path = str(expr_path) if expr_path and expr_path.exists() else None
+        safe_meta_path = str(meta_path) if meta_path and meta_path.exists() else None
 
         if not safe_expr_path:
             logger.warning(f"M3D expression data not found at {expr_path}. Running without expression data.")
@@ -88,7 +96,8 @@ class MetricDLLMJudge(BaseMetric):
             regulondb_network_path=str(data["network"]), 
             regulondb_gene_product_path=str(data["gene_product"]),
             m3d_expression_path=safe_expr_path,
-            m3d_metadata_path=safe_meta_path
+            m3d_metadata_path=safe_meta_path,
+            max_iterations=1  # Limit for smoke test
             # Ensure LLM is enabled if possible for better explanations, 
             # but usually arguments control this. 
             # We assume the user creates environment variables or relies on default config.

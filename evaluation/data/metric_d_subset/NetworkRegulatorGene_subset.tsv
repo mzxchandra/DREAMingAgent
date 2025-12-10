@@ -1,0 +1,26 @@
+# License
+#	# RegulonDB is free for academic/noncommercial use
+# User is not entitled to change or erase data sets of the RegulonDB
+# database or to eliminate copyright notices from RegulonDB. Furthermore,
+# User is not entitled to expand RegulonDB or to integrate RegulonDB partly
+# or as a whole into other databank systems, without prior written consent
+# from CCG-UNAM.
+# Please check the license at https://regulondb.ccg.unam.mx/manual/aboutUs/terms-conditions
+# Citation
+#	# Heladia Salgado, Socorro Gama-Castro, et al., RegulonDB v12.0: a comprehensive resource of transcriptional regulation in E. coli K-12,
+# Nucleic Acids Research, 2023;, gkad1072, https://doi.org/10.1093/nar/gkad1072
+# RegulonDB Release: 13.5
+# Contact
+#	email:regulondb@ccg.unam.mx
+#Date:
+#	06-03-2025
+## Columns:
+## (1) regulatorId. Regulator identifier
+## (2) regulatorName. Regulator Name
+## (3) regulatorGeneName. Gene(s) coding for the TF
+## (4) regulatedId. Gene ID regulated by the Regulator (regulated Gene)
+## (5) regulatedName. Gene regulated by the Regulator (regulated Gene)
+## (6) function. Regulatory Function of the Regulator on the regulated Gene (+ activator, - repressor, -+ dual, ? unknown)
+## (7) confidenceLevel. RI confidence level based on its evidence (Values: Confirmed[C], Strong[S], Weak[W], Unknown[?])
+1)regulatorId	2)regulatorName	3)RegulatorGeneName	4)regulatedId	5)regulatedName	6)function	7)confidenceLevel 
+RDBECOLITFC00155	AlaS	alaS	RDBECOLIGNC00031	alaS	-	C 

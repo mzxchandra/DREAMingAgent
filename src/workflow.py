@@ -120,7 +120,7 @@ def run_reconciliation(
     m3d_expression_path: Optional[str | Path] = None,
     m3d_metadata_path: Optional[str | Path] = None,
     max_iterations: int = 100,
-    use_synthetic: bool = False
+    target_tfs: Optional[List[str]] = None
 ) -> Dict[str, Any]:
     """
     Run the complete reconciliation pipeline.
@@ -133,7 +133,7 @@ def run_reconciliation(
         m3d_expression_path: Path to M3D expression matrix
         m3d_metadata_path: Path to M3D metadata
         max_iterations: Maximum processing iterations (safety limit)
-        use_synthetic: If True, generate synthetic test data
+        target_tfs: List of specific TFs to analyze
         
     Returns:
         Final agent state with all results
@@ -148,7 +148,7 @@ def run_reconciliation(
         regulondb_gene_product_path=regulondb_gene_product_path,
         m3d_expression_path=m3d_expression_path,
         m3d_metadata_path=m3d_metadata_path,
-        use_synthetic=use_synthetic
+        target_tfs=target_tfs
     )
     set_loader_config(config)
     
@@ -183,44 +183,7 @@ def run_reconciliation(
         raise
 
 
-def run_with_synthetic_data(output_dir: str = "test_data") -> Dict[str, Any]:
-    """
-    Run the workflow with synthetic test data.
-    
-    Useful for testing and development without real data files.
-    
-    Args:
-        output_dir: Directory to store synthetic data
-        
-    Returns:
-        Final agent state
-    """
-    logger.info("Running with synthetic test data...")
-    
-    # Configure with synthetic data
-    config = LoaderConfig(
-        regulondb_network_path="",  # Will be generated
-        regulondb_gene_product_path="",
-        m3d_expression_path="",
-        m3d_metadata_path="",
-        use_synthetic=True,
-        synthetic_output_dir=output_dir
-    )
-    set_loader_config(config)
-    
-    # Create and compile workflow
-    workflow = create_reconciliation_workflow()
-    app = compile_workflow(workflow)
-    
-    # Execute
-    initial_state = create_initial_state()
-    initial_state["max_iterations"] = 50
-    
-    final_state = app.invoke(initial_state)
-    
-    _log_summary(final_state)
-    
-    return final_state
+# Synthetic data workflow removed.
 
 
 def _log_summary(state: Dict[str, Any]):

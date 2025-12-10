@@ -453,7 +453,13 @@ def parse_m3d_expression(filepath: str | Path) -> pd.DataFrame:
     )
     
     # Clean index (gene/probe IDs)
-    df.index = df.index.astype(str).str.strip().str.lower()
+    # Extract b-numbers if present (e.g. "aaaD_b4634_3" -> "b4634")
+    def _extract_bnum(s):
+        s = str(s).strip().lower()
+        match = re.search(r'b\d{4}', s)
+        return match.group(0) if match else s
+
+    df.index = df.index.map(_extract_bnum)
     df.index.name = 'gene_id'
     
     # Clean column names (experiment IDs)
@@ -502,159 +508,3 @@ def parse_m3d_metadata(filepath: str | Path) -> pd.DataFrame:
     
     logger.info(f"Loaded M3D metadata: {len(df)} experiments with {len(df.columns)} attributes")
     return df
-
-
-# ============================================================================
-# Synthetic Data Generator (For Testing)
-# ============================================================================
-
-def create_synthetic_test_data(
-    n_genes: int = 100,
-    n_experiments: int = 50,
-    n_tfs: int = 10,
-    output_dir: str | Path = "test_data"
-) -> Dict[str, Path]:
-    """Create synthetic test data matching real RegulonDB format."""
-    import numpy as np
-    
-    output_dir = Path(output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
-    
-    # Generate b-numbers
-    all_genes = [f"b{i:04d}" for i in range(1, n_genes + 1)]
-    tfs = all_genes[:n_tfs]
-    
-    # --- Create NetworkRegulatorGene.tsv (Real format) ---
-    network_lines = [
-        "## Network Regulatory Interactions in Escherichia coli K-12 substr. MG1655",
-        "## Columns:",
-        "## (1) regulatorId. Regulator identifier", 
-        "## (2) regulatorName. Regulator Name",
-        "## (3) RegulatorGeneName. Gene(s) coding for the TF",
-        "## (4) regulatedId. Gene ID regulated by the Regulator",
-        "## (5) regulatedName. Gene regulated by the Regulator", 
-        "## (6) function. Regulatory Function (+/-/+-/?)",
-        "## (7) confidenceLevel. Evidence level (C/S/W/?)",
-        "1)regulatorId\t2)regulatorName\t3)RegulatorGeneName\t4)regulatedId\t5)regulatedName\t6)function\t7)confidenceLevel"
-    ]
-    
-    np.random.seed(42)
-    targets_per_tf = {}
-    
-    for i, tf in enumerate(tfs):
-        tf_name = f"tf{i+1}"
-        tf_gene_name = f"gene{i+1}"
-        
-        # Each TF regulates 5-15 genes
-        n_targets = np.random.randint(5, 16)
-        targets = np.random.choice([g for g in all_genes if g != tf], n_targets, replace=False)
-        targets_per_tf[tf] = list(targets)
-        
-        for target in targets:
-            target_name = f"gene{int(target[1:])}"
-            effect = np.random.choice(['+', '-', '+-'], p=[0.4, 0.4, 0.2])
-            evidence_type = np.random.choice(['S', 'W'], p=[0.6, 0.4])
-            
-            # Create RegulonDB-style IDs
-            tf_id = f"RDBECOLICNC{i:05d}"
-            target_id = f"RDBECOLIGNC{int(target[1:]):05d}"
-            
-            network_lines.append(
-                f"{tf_id}\t{tf_name}\t{tf_gene_name}\t{target_id}\t{target_name}\t{effect}\t{evidence_type}"
-            )
-    
-    network_path = output_dir / "NetworkRegulatorGene.tsv"
-    with open(network_path, 'w') as f:
-        f.write('\n'.join(network_lines))
-    
-    # --- Create GeneProductAllIdentifiersSet.tsv (Real format) ---
-    gene_product_lines = [
-        "## Gene and Gene Product information for Escherichia coli K-12 substr. MG1655",
-        "## Columns:",
-        "## (1) Gene identifier assigned by RegulonDB",
-        "## (2) Gene name", 
-        "## (3) Gene left end position in the genome",
-        "## (4) Gene right end position in the genome",
-        "## (5) DNA strand where the gene is coded",
-        "## (6) other gene synonyms",
-        "## (7) Other database's id related to gene",
-        "## (8) Product identifier of the gene",
-        "## (9) Product name of the gene",
-        "## (10) Other products synonyms", 
-        "## (11) Other database's id related to product",
-        "1)geneId\t2)geneName\t3)leftEndPos\t4)rightEndPos\t5)strand\t6)geneSynonyms\t7)otherDbsGeneIds\t8)productId\t9)productName\t10)productSynonyms\t11)otherDbsProductsIds"
-    ]
-    
-    for gene in all_genes:
-        gene_num = int(gene[1:])
-        name = f"gene{gene_num}"
-        gene_id = f"RDBECOLIGNC{gene_num:05d}"
-        
-        # Create realistic otherDbsGeneIds with b-number embedded
-        other_dbs = f"[ASKA:ECK{gene_num:04d}+{gene}+JW{gene_num:04d}+{name}][KEIO:ECK{gene_num:04d}+{gene}+JW{gene_num:04d}+{name}]"
-        
-        gene_product_lines.append(
-            f"{gene_id}\t{name}\t{gene_num*1000}\t{gene_num*1000+500}\tforward\t{name}5,EG{gene_num:05d}\t{other_dbs}\tRDBECOLIPDC{gene_num:05d}\tprotein {name}\t\t"
-        )
-    
-    gene_product_path = output_dir / "GeneProductAllIdentifiersSet.tsv"
-    with open(gene_product_path, 'w') as f:
-        f.write('\n'.join(gene_product_lines))
-    
-    # --- Create expression matrix with embedded signals ---
-    exp_ids = [f"exp_{i:03d}" for i in range(n_experiments)]
-    
-    # Base expression (random)
-    expression_data = np.random.normal(8.0, 1.5, (n_genes, n_experiments))
-    
-    # Embed regulatory signals
-    for tf in tfs:
-        tf_idx = all_genes.index(tf)
-        tf_expr = expression_data[tf_idx, :]
-        
-        for target in targets_per_tf.get(tf, []):
-            target_idx = all_genes.index(target)
-            # Add correlated signal
-            correlation_strength = np.random.uniform(0.4, 0.8)
-            noise = np.random.normal(0, 0.5, n_experiments)
-            expression_data[target_idx, :] += correlation_strength * (tf_expr - np.mean(tf_expr)) + noise
-    
-    expression_df = pd.DataFrame(
-        expression_data,
-        index=all_genes,
-        columns=exp_ids
-    )
-    
-    expression_path = output_dir / "E_coli_v4_Build_6_exps.tab"
-    expression_df.to_csv(expression_path, sep='\t')
-    
-    # --- Create metadata ---
-    conditions = ['Glucose', 'Anaerobic', 'Heat_Shock', 'pH_Stress', 'Stationary']
-    perturbations = ['Chemical', 'Temperature', 'Oxygen', 'pH', 'Growth_Phase']
-    
-    metadata_rows = []
-    for i, exp_id in enumerate(exp_ids):
-        cond = conditions[i % len(conditions)]
-        pert = perturbations[i % len(perturbations)]
-        metadata_rows.append({
-            'Experiment_ID': exp_id,
-            'Condition': cond,
-            'Perturbation': pert,
-            'Value': np.random.uniform(0.1, 10.0),
-            'Time_Point': f"{np.random.randint(0, 60)}min"
-        })
-    
-    metadata_df = pd.DataFrame(metadata_rows)
-    metadata_df.set_index('Experiment_ID', inplace=True)
-    
-    metadata_path = output_dir / "E_coli_v4_Build_6_meta.tab"
-    metadata_df.to_csv(metadata_path, sep='\t')
-    
-    logger.info(f"Created synthetic test data in {output_dir}")
-    
-    return {
-        "network": network_path,
-        "gene_product": gene_product_path,
-        "expression": expression_path,
-        "metadata": metadata_path
-    }

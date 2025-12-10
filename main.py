@@ -14,6 +14,10 @@ import argparse
 import sys
 from pathlib import Path
 from loguru import logger
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Configure logging
 logger.remove()
@@ -83,11 +87,6 @@ Examples:
     
     # Options
     parser.add_argument(
-        "--synthetic", "-s",
-        action="store_true",
-        help="Run with synthetic test data (no real files needed)"
-    )
-    parser.add_argument(
         "--max-iterations",
         type=int,
         default=100,
@@ -127,7 +126,6 @@ Examples:
     # Import after argument parsing to avoid slow startup for --help
     from src.workflow import (
         run_reconciliation,
-        run_with_synthetic_data,
         export_results
     )
     from src.config import AgentConfig, set_config, disable_llm
@@ -146,28 +144,31 @@ Examples:
         set_config(config)
     
     try:
-        if args.synthetic:
-            # Run with synthetic data
-            logger.info("Running with synthetic test data...")
-            final_state = run_with_synthetic_data(
-                output_dir=str(args.output / "synthetic_data")
+        # Validate required arguments
+        if not all([args.network, args.genes]):
+            parser.error(
+                "At least --network and --genes are required."
             )
-        else:
-            # Validate required arguments
-            if not all([args.network, args.genes]):
-                parser.error(
-                    "When not using --synthetic, at least --network and --genes are required."
-                )
-            
-            # Run with real data
-            logger.info("Running with provided data files...")
-            final_state = run_reconciliation(
-                regulondb_network_path=args.network,
-                regulondb_gene_product_path=args.genes,
-                m3d_expression_path=args.expression,
-                m3d_metadata_path=args.metadata,
-                max_iterations=args.max_iterations
+        # Validate required arguments
+        if not all([args.network, args.genes]):
+            parser.error(
+                "At least --network and --genes are required."
             )
+        
+        # Parse TFs if provided
+        target_tfs = [tf.strip() for tf in args.tfs.split(',')] if args.tfs else None
+        
+        # Run with real data
+        logger.info("Running with provided data files...")
+        # Run reconciliation
+        final_state = run_reconciliation(
+            regulondb_network_path=args.network,
+            regulondb_gene_product_path=args.genes,
+            m3d_expression_path=args.expression,
+            m3d_metadata_path=args.metadata,
+            max_iterations=args.max_iterations,
+            target_tfs=target_tfs
+        )
         
         # Export results
         args.output.mkdir(parents=True, exist_ok=True)

@@ -117,16 +117,6 @@ The system uses ALCF (Argonne Leadership Computing Facility) for LLM-powered rea
 
 ## Usage
 
-### Quick Start (Synthetic Data)
-
-```bash
-# Without LLM (rule-based reasoning)
-python main.py --synthetic --no-llm --output output/
-
-# With LLM (AI-powered reasoning via ALCF)
-python main.py --synthetic --output output/
-```
-
 ### Running with Real Data
 
 To run the system with your own data files (or the provided RegulonDB files in `data/`):
@@ -153,7 +143,7 @@ python main.py \
 
 | Flag | Description |
 |------|-------------|
-| `--synthetic`, `-s` | Run with generated test data |
+
 | `--no-llm` | Disable LLM reasoning (use rule-based fallbacks) |
 | `--llm-model MODEL` | LLM model to use (default: `argonne-llama3`) |
 | `--output`, `-o` | Output directory (default: `output/`) |

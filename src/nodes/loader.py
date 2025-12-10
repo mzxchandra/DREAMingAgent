@@ -6,7 +6,7 @@ knowledge graph and expression matrix for the reconciliation workflow.
 """
 
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 import networkx as nx
 import pandas as pd
 from loguru import logger
@@ -16,8 +16,7 @@ from ..utils.parsers import (
     parse_tf_gene_network,
     parse_gene_product_mapping,
     parse_m3d_expression,
-    parse_m3d_metadata,
-    create_synthetic_test_data
+    parse_m3d_metadata
 )
 
 
@@ -30,15 +29,13 @@ class LoaderConfig:
         regulondb_gene_product_path: str | Path,
         m3d_expression_path: Optional[str | Path] = None,
         m3d_metadata_path: Optional[str | Path] = None,
-        use_synthetic: bool = False,
-        synthetic_output_dir: str | Path = "test_data"
+        target_tfs: Optional[List[str]] = None
     ):
         self.regulondb_network_path = Path(regulondb_network_path)
         self.regulondb_gene_product_path = Path(regulondb_gene_product_path)
         self.m3d_expression_path = Path(m3d_expression_path) if m3d_expression_path else None
         self.m3d_metadata_path = Path(m3d_metadata_path) if m3d_metadata_path else None
-        self.use_synthetic = use_synthetic
-        self.synthetic_output_dir = Path(synthetic_output_dir)
+        self.target_tfs = target_tfs if target_tfs else []
 
 
 # Global config - will be set before workflow runs
@@ -74,17 +71,8 @@ def loader_node(state: AgentState) -> Dict[str, Any]:
     
     errors = []
     
-    # Handle synthetic data generation for testing
-    if _loader_config and _loader_config.use_synthetic:
-        logger.info("Generating synthetic test data...")
-        paths = create_synthetic_test_data(
-            output_dir=_loader_config.synthetic_output_dir
-        )
-        regulondb_network_path = paths["network"]
-        regulondb_gene_product_path = paths["gene_product"]
-        m3d_expression_path = paths["expression"]
-        m3d_metadata_path = paths["metadata"]
-    elif _loader_config:
+    # Determine data paths
+    if _loader_config:
         regulondb_network_path = _loader_config.regulondb_network_path
         regulondb_gene_product_path = _loader_config.regulondb_gene_product_path
         m3d_expression_path = _loader_config.m3d_expression_path
@@ -170,6 +158,24 @@ def loader_node(state: AgentState) -> Dict[str, Any]:
     # --- 5. Initialize TF Queue ---
     # Extract all TFs from the literature graph
     tf_queue = _extract_tf_queue(literature_graph)
+    
+    # Filter for specific TFs if requested
+    if _loader_config and _loader_config.target_tfs:
+        target_set = set(t.lower() for t in _loader_config.target_tfs)
+        # Filter by checking if name or ID matches
+        filtered_queue = []
+        for tf_id in tf_queue:
+            node_data = literature_graph.nodes[tf_id]
+            name = node_data.get('name', '').lower()
+            if tf_id.lower() in target_set or name in target_set:
+                filtered_queue.append(tf_id)
+        
+        if filtered_queue:
+            logger.info(f"Filtered TF queue to {len(filtered_queue)} targets: {filtered_queue}")
+            tf_queue = filtered_queue
+        else:
+            logger.warning(f"No matching TFs found for targets: {_loader_config.target_tfs}. Using full queue.")
+
     logger.info(f"Initialized TF queue with {len(tf_queue)} transcription factors")
     
     # --- 6. Update state ---

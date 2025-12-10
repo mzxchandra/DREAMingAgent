@@ -1,0 +1,12 @@
+{
+  "metric": "MetricBReal",
+  "scores": {
+    "recall": 0.0,
+    "tp": 0,
+    "fn": 7323,
+    "total_edges": 7323
+  },
+  "plot_paths": [
+    "evaluation/outputs/real_data_test/metric_b_status.png"
+  ]
+}
