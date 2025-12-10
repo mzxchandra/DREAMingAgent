@@ -51,32 +51,39 @@ def main():
     client = LitSenseClient()
     vector_store = get_vector_store(persist_directory=args.output_dir)
     
-    # Identify Edges to Process
-    edges = list(graph.edges(data=True))
-    if args.limit:
-        edges = edges[:args.limit]
+    # Identify Unique TFs to Process
+    # We want to iterate TFs, not edges
+    unique_tfs = set()
+    for u, _, data in graph.edges(data=True):
+        tf_id = u
+        tf_name = data.get('tf_name', bnumber_to_name.get(tf_id, tf_id))
+        unique_tfs.add((tf_id, tf_name))
         
-    logger.info(f"Processing {len(edges)} edges...")
+    unique_tfs = sorted(list(unique_tfs)) # Sort for reproducibility
+    
+    logger.info(f"Processing {len(unique_tfs)} unique transcription factors...")
+    
+    # Limit per TF
+    # Limit per TF
+    DOCS_LIMIT_PER_TF = 3
+    TOTAL_DOCS_LIMIT = None # Process all TFs
     
     processed_count = 0
     docs_added = 0
     
-    for u, v, data in tqdm(edges):
-        tf_id = u
-        target_id = v
-        
-        # Resolve names
-        tf_name = data.get('tf_name', bnumber_to_name.get(tf_id, tf_id))
-        target_name = data.get('gene_name', bnumber_to_name.get(target_id, target_id))
-        
+    for tf_id, tf_name in tqdm(unique_tfs):
+        # Global limit check (disabled)
+        if TOTAL_DOCS_LIMIT and docs_added >= TOTAL_DOCS_LIMIT:
+            logger.info(f"Reached global limit of {TOTAL_DOCS_LIMIT} documents. Stopping.")
+            break
+
         # Skip if names are just IDs (harder to search)
-        if tf_name.startswith('RDB') or target_name.startswith('RDB'):
-            logger.warning(f"Skipping {tf_id}->{target_id} due to missing common names")
+        if tf_name.startswith('RDB'):
             continue
             
-        # Query LitSense
+        # Query LitSense for TF Broad Context
         try:
-            results = client.get_evidence_for_interaction(tf_name, target_name)
+            results = client.get_tf_context(tf_name, limit=DOCS_LIMIT_PER_TF)
             
             if not results:
                 continue
@@ -95,19 +102,24 @@ def main():
                 if not text:
                     continue
                 
-                # Use deterministic ID based on gene pair and PMID
-                doc_id = f"litsense_{tf_name}_{target_name}_{pmid}"
+                # Double check per-TF limit (though query limit handles it mostly)
+                if len(new_docs) >= DOCS_LIMIT_PER_TF:
+                    break
+                    
+                # Store generic TF context
+                # doc_id = litsense_TFNAME_PMID
+                doc_id = f"litsense_{tf_name}_{pmid}"
                 
                 doc = LiteratureDocument(
                     doc_id=doc_id,
                     gene_a=tf_name,
-                    gene_b=target_name,
-                    interaction_type="regulation", 
+                    gene_b="N/A", # Broad context, no specific target
+                    interaction_type="regulation_context", 
                     conditions=[], 
                     evidence="text_mining",
                     source=f"PubMed:{pmid}",
                     text=text,
-                    metadata={"score": res.get('score', 0.0)}
+                    metadata={"score": res.get('score', 0.0), "context_type": "broad_tf"}
                 )
                 new_docs.append(doc)
             
@@ -117,11 +129,11 @@ def main():
                 docs_added += len(new_docs)
                 
         except Exception as e:
-            logger.error(f"Error processing {tf_name}->{target_name}: {e}")
+            logger.error(f"Error processing TF {tf_name}: {e}")
             
         processed_count += 1
         
-    logger.info(f"Ingestion complete. Processed {processed_count} edges. Added {docs_added} documents.")
+    logger.info(f"Ingestion complete. Processed {processed_count} TFs. Added {docs_added} documents.")
 
 if __name__ == "__main__":
     main()

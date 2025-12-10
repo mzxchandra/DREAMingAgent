@@ -18,8 +18,8 @@ class LitSenseClient:
             "Accept": "application/json"
         }
         self.last_request_time = 0.0
-        # Rate limit: 1 request per second (conservative)
-        self.rate_limit_delay = 1.2 
+        # Rate limit: 2 requests per second (aggressive but needed for bulk)
+        self.rate_limit_delay = 0.5
 
     def search(self, query: str, rerank: bool = True) -> List[Dict[str, Any]]:
         """
@@ -59,7 +59,7 @@ class LitSenseClient:
             
             if response.status_code == 200:
                 results = response.json()
-                logger.info(f"LitSense found {len(results)} results for '{query}'")
+                logger.debug(f"LitSense found {len(results)} results for '{query}'")
                 return results
             else:
                 logger.warning(f"LitSense API error {response.status_code}: {response.text}")
@@ -69,10 +69,15 @@ class LitSenseClient:
             logger.error(f"LitSense request failed: {e}")
             return []
 
-    def get_evidence_for_interaction(self, tf_name: str, target_name: str) -> List[Dict[str, Any]]:
+    def get_evidence_for_interaction(self, tf_name: str, target_name: str, limit: int = 5) -> List[Dict[str, Any]]:
         """
         Convenience method to search for regulation evidence.
         Tries a few query variations to maximize recall.
+        
+        Args:
+            tf_name: Name of transcription factor
+            target_name: Name of target gene
+            limit: Maximum results to return
         """
         queries = [
             f"{tf_name} regulates {target_name}",
@@ -92,7 +97,37 @@ class LitSenseClient:
                     all_results.append(res)
                     seen_extracts.add(text)
             
-            if len(all_results) >= 5: # Stop if we have enough
+            if len(all_results) >= limit: # Stop if we have enough
                 break
                 
-        return all_results
+        return all_results[:limit]
+
+    def get_tf_context(self, tf_name: str, limit: int = 10) -> List[Dict[str, Any]]:
+        """
+        Search for general regulatory context for a Transcription Factor.
+        
+        Args:
+            tf_name: Name of transcription factor
+            limit: Maximum results to return
+        """
+        queries = [
+            f"{tf_name} regulation",
+            f"{tf_name} binding site",
+            f"{tf_name} transcription factor"
+        ]
+        
+        all_results = []
+        seen_extracts = set()
+        
+        for q in queries:
+            results = self.search(q)
+            for res in results:
+                text = res.get('text', '')
+                if text and text not in seen_extracts:
+                    all_results.append(res)
+                    seen_extracts.add(text)
+            
+            if len(all_results) >= limit:
+                break
+                
+        return all_results[:limit]
