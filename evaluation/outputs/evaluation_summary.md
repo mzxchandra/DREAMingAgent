@@ -3,12 +3,11 @@
 ## Overview
 Evaluated 1 metrics.
 
-### MetricASabotage
-- **fp_detection_rate**: 0.00%
-- **fp_precision**: 0.00%
-- **recovery_rate**: 0.00%
-- **tp_fp**: 0
-- **fn_fp**: 5
-- **fp_detector**: 0
+### MetricDLLMJudge
+- **mean_bio_accuracy**: 253.33%
+- **mean_stat_reasoning**: 2.267
+- **mean_clarity**: 3.900
+- **mean_overall**: 2.533
+- **high_quality_rate**: 0.00%
 
-![metric_a_fp_confusion_matrix.png](metric_a_fp_confusion_matrix.png)
+![metric_d_score_dist.png](metric_d_score_dist.png)

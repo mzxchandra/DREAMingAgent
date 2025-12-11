@@ -19,8 +19,8 @@ def load_network_as_graph(network_path: Path) -> nx.DiGraph:
     
     G = nx.DiGraph()
     for _, row in df.iterrows():
-        source = row['regulatorName'] # Using names as IDs for simplicity in logic
-        target = row['regulatedName']
+        source = str(row['regulatorName']).strip().lower() # Lowercase for consistency
+        target = str(row['regulatedName']).strip().lower()
         
         # Store all attributes
         attrs = row.to_dict()
@@ -85,22 +85,39 @@ def inject_false_edges(
 
 def delete_true_edges(
     graph: nx.DiGraph, 
-    ground_truth_edges: Set[str], 
-    n_edges: int
+    n_edges: int,
+    evidence_level: str = None,
+    focus_node: str = None
 ) -> Tuple[nx.DiGraph, List[str]]:
     """Delete existing true edges from the graph.
     
-    Returns:
-        Tuple of (modified_graph, list_of_deleted_edge_ids)
+    Args:
+        evidence_level: If provided, only delete edges with this confidence level (e.g. 'S', 'C').
+        focus_node: If provided, only delete edges where this node is the SOURCE.
     """
     G = graph.copy()
     deleted_edges = []
     
-    # Filter for edges that are actually in the graph AND in ground_truth
-    candidates = [
-        (u, v) for u, v in G.edges() 
-        if G.edges[u, v].get('edge_id') in ground_truth_edges
-    ]
+    # Filter candidates
+    candidates = []
+    for u, v in G.edges():
+        # Check focus node constraint
+        if focus_node and u != focus_node:
+            continue
+            
+        # Check evidence level constraint
+        if evidence_level:
+            edge_evidence = G.edges[u, v].get('confidenceLevel', '')
+            # Simple containment check handles 'Strong' vs 'S' variations
+            if evidence_level.lower() not in edge_evidence.lower() and \
+               edge_evidence.lower() not in evidence_level.lower():
+                continue
+                
+        # Don't delete edges we just injected!
+        if G.edges[u, v].get('is_injected', False):
+            continue
+            
+        candidates.append((u, v))
     
     if not candidates:
         return G, []

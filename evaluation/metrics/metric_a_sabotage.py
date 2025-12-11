@@ -50,7 +50,7 @@ class MetricASabotage(BaseMetric):
         
         # 3. Inject False Positives (Sabotage)
         # We inject edges that do NOT exist in RegulonDB (presumed false)
-        focus_tf = self.config.limit_tfs[0] if self.config.limit_tfs else None
+        focus_tf = self.config.limit_tfs[0].lower() if self.config.limit_tfs else None
         
         G_injected, injected_ids = inject_false_edges(
             G, 
@@ -59,12 +59,26 @@ class MetricASabotage(BaseMetric):
             focus_node=focus_tf
         )
         
+        # 3.1 Delete True Edges (Sabotage - Recovery Test)
+        # We delete edges that DO exist in RegulonDB (presumed true) 
+        # to see if the system recovers them as "Novel" or "Validated"
+        G_sabotaged, deleted_ids = delete_true_edges(
+            G_injected, # Use the graph that already has injections
+            n_edges=self.config.sabotage_n_false_positives, # Recycle text N for deletion count for now
+            evidence_level='S', # Delete STRONG edges so we know they should be there
+            focus_node=focus_tf
+        )
+        
+        logger.info(f"Sabotage Summary for {focus_tf if focus_tf else 'Global'}:")
+        logger.info(f"  Injected {len(injected_ids)} False Positives: {injected_ids}")
+        logger.info(f"  Deleted {len(deleted_ids)} True Edges: {deleted_ids}")
+
         # 4. Save Sabotaged Network
         sabotage_dir = self.config.data_dir / "sabotage_real"
         sabotage_dir.mkdir(parents=True, exist_ok=True)
         sabotaged_network_path = sabotage_dir / "network_sabotaged.txt"
         
-        save_graph_to_regulondb_format(G_injected, sabotaged_network_path)
+        save_graph_to_regulondb_format(G_sabotaged, sabotaged_network_path)
         
         # Return paths (using REAL expression/metadata, but SABOTAGED network)
         return {
@@ -73,8 +87,8 @@ class MetricASabotage(BaseMetric):
             "expression_path": expression_path,
             "metadata_path": metadata_path,
             "injected_ids": injected_ids,
-            "deleted_ids": set(),
-            "ground_truth_remaining": set(G.edges[u, v]['edge_id'] for u, v in G.edges())
+            "deleted_ids": deleted_ids, # Now we have deleted IDs to track
+            "ground_truth_remaining": set(G.edges[u, v]['edge_id'] for u, v in G.edges()) - set(deleted_ids)
         }
 
     def run_evaluation(self, data: Dict[str, Any]) -> Dict[str, Any]:

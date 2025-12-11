@@ -1,0 +1,14 @@
+{
+  "metric": "MetricDLLMJudge",
+  "scores": {
+    "mean_bio_accuracy": 2.533333333333333,
+    "mean_stat_reasoning": 2.2666666666666666,
+    "mean_clarity": 3.9,
+    "mean_overall": 2.533333333333333,
+    "high_quality_rate": 0.0
+  },
+  "plot_paths": [
+    "evaluation/outputs/metric_d_score_dist.png",
+    "evaluation/outputs/metric_d_components.png"
+  ]
+}
