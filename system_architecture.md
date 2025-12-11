@@ -1,12 +1,12 @@
 # DREAMing Agent: System Architecture & Data Flow
 
-This document demystifies how the three primary data sources (RegulonDB, M3D, LitSense) integrate to drive the agent's decision-making process.
+This document details the agentic architecture for reconciling biological knowledge (RegulonDB) with high-throughput data (M3D).
 
 ## High-Level Concept
 The system acts as a **Scientist Reviewing a Hypothesis**.
 1.  **RegulonDB** provides the **Hypothesis / Prior Knowledge** ("We believe protein A regulates gene B").
 2.  **M3D** provides the **Experimental Data** ("Do we see A and B correlated in actual experiments?").
-3.  **LitSense** provides the **Contextual nuance** ("Does this interaction only happen in *acidic* conditions?").
+3.  **Research Agent** provides the **Context** ("What conditions trigger this interaction?").
 
 ## Data Flow Diagram
 
@@ -16,87 +16,89 @@ graph TD
     classDef data fill:#e1f5fe,stroke:#01579b,stroke-width:2px;
     classDef agent fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
     classDef store fill:#fff9c4,stroke:#fbc02d,stroke-width:2px;
+    classDef subflow fill:#f3e5f5,stroke:#7b1fa2,stroke-width:1px,stroke-dasharray: 5 5;
     
-    subgraph "1. Input Data"
-        RDB[("RegulonDB<br>(The Map)")]:::data
-        M3D[("M3D Expression<br>(The Traffic)")]:::data
-        LIT[("LitSense<br>(The Guidebook)")]:::data
-    end
-
-    subgraph "2. Knowledge Preparation"
-        Ingest[("Ingest Script")]
-        VDB[("ChromaDB<br>Vector Store")]:::store
+    subgraph "1. Data Preparation"
+        RDB[("RegulonDB")]:::data
+        M3D[("M3D Expression")]:::data
         Loader[("Loader Node")]:::agent
+        Batch[("Batch Manager")]:::agent
         
-        LIT -->|Scrape & Embed| Ingest -->|Store Embeddings| VDB
-        RDB -->|Load Graph Structure| Loader
-        M3D -->|Load Matrices| Loader
+        RDB --> Loader
+        M3D --> Loader
+        Loader --> Batch
     end
 
-    subgraph "3. The Agentic Loop"
-        subgraph "Research Agent"
-            RA[("Context Filtering")]:::agent
-            Loader -->|TF Batch| RA
-            M3D -.->|Filter Samples| RA
+    subgraph "2. Research Agent (The Contextualizer)"
+        RA[("Research Agent Node")]:::agent
+        VS[("Vector Store")]:::store
+        
+        subgraph "Internal Research Workflow"
+            Query[("Query Formulation")]:::subflow --> Ret[("Vector Retrieval")]:::subflow
+            Ret --> Ext[("Context Extraction")]:::subflow
+            Ext --> Match[("Condition Matching")]:::subflow
+            Match --> Expl[("Explanation")]:::subflow
+            Expl --> Format[("Output Formatting")]:::subflow
         end
         
-        subgraph "Analysis Agent"
-            AA[("Statistical Engine")]:::agent
-            RA -->|Filtered Context| AA
-            AA -->|Calculate CLR & MI| Stats[("Z-Scores & Stats")]
-        end
+        Batch --> RA
+        VS -.->|Literature RAG| Ret
         
-        subgraph "Reviewer Agent (The Judge)"
-            REV[("LLM Reviewer")]:::agent
-            
-            Stats -->|Strength of Signal| REV
-            RDB -.->|Evidence Strength| REV
-            VDB -.->|Retrieves Context| REV
-            
-            note["Context Lookup:<br>'Why might this edge be missing?'"]
-            VDB -.- note
-        end
+        RA -->|Filtered Samples| AA_Input(("Active\nSamples"))
     end
 
-    subgraph "4. Output"
-        Decision{("Decision")}
+    subgraph "3. Analysis Agent (The Statistician)"
+        AA[("Analysis Agent")]:::agent
         
-        REV --> Decision
-        Decision -->|Validated| VAL[("Validated Edge")]
-        Decision -->|Novel| NOV[("Novel Hypothesis")]
-        Decision -->|Silent| SIL[("Condition Silent")]
-        Decision -->|FalsePos| FP[("Probable Error")]
+        AA_Input --> AA
+        M3D -.-> AA
+        AA -->|CLR/MI Stats| Stats[("Statistical Evidence")]
     end
+    
+    subgraph "4. Reviewer Agent (The Judge)"
+        Rev[("Reviewer Agent")]:::agent
+        
+        Stats --> Rev
+        RDB -.->|Prior Evidence| Rev
+        VS -.->|Verify Context| Rev
+        
+        Rev --> Decision{("Decision")}
+    end
+
+    Decision -->|Validated| VAL[("Validated Edge")]
+    Decision -->|Novel| NOV[("Novel Hypothesis")]
+    Decision -->|Silent| SIL[("Condition Silent")]
+    Decision -->|FalsePos| FP[("Probable Error")]
+
+    Decision -->|Next Batch| Batch
 ```
 
 ## Component Breakdown
 
-### 1. RegulonDB (The "Prior")
-*   **Role:** Defines the baseline "Truth". It tells the system what *should* exist described by decades of manual curation.
-*   **Usage:**
-    *   **Sabotage Test (Metric A):** We purposely delete true RegulonDB edges to see if the system can "rediscover" them using data.
-    *   **Reviewer Agent:** Used to tag an edge as "Has Literature Support". If the data matches RegulonDB, we mark it **Validated**. If the data contradicts RegulonDB (low correlation), it triggers a deeper review (Is it "Condition Silent" or a "False Positive"?).
+### 1. Research Agent (Dual-Mode)
+This advanced agent replaces the simple context filtering of previous versions. It performs two key functions:
+1.  **Context Filtering:** Uses biological knowledge (from literature semantics) to intelligently select relevant M3D samples (e.g., filtering for "Anaerobic" conditions for the TF FNR).
+2.  **Literature RAG Loop:** Executes an internal 6-step LangGraph workflow for each gene pair:
+    *   *Query:* Generates optimized search queries.
+    *   *Retrieval:* Fetches docs from ChromaDB.
+    *   *Context:* Extracts required conditions (e.g., "Requires pH < 5").
+    *   *Matching:* Compares required conditions vs. dataset metadata.
+    *   *Explanation:* Generates a scientific rationale.
 
-### 2. M3D (The "Signal")
-*   **Role:** Provides unbiased, raw observational data from thousands of E. coli microarrays.
-*   **Usage:**
-    *   **Analysis Agent:** Calculates the **CLR (Context Likelihood of Relatedness)** Z-score.
-        *   **Z > 4.0:** Strong Signal (The genes definitely talk to each other).
-        *   **Z < 1.0:** No Signal (They ignore each other).
-    *   **Discovery:** If M3D shows a Strong Signal (Z>4) but RegulonDB has *no record* of it, the system proposes a **Novel Hypothesis**.
+### 2. Analysis Agent (The "Signal")
+*   **Role:** Calculates the **CLR (Context Likelihood of Relatedness)** Z-score using *only* the samples selected by the Research Agent. mechanism.
+*   **Logic:**
+    *   **Z > 4.0:** Strong Signal.
+    *   **Z < 1.0:** No Signal.
 
-### 3. LitSense / ChromaDB (The "Context")
-*   **Role:** Provides the *reasoning* behind the biology. M3D gives numbers; LitSense gives words.
-*   **Usage:**
-    *   **Reviewer Agent:** When the Signal (M3D) is weak but the Prior (RegulonDB) is strong, the Agent queries ChromaDB.
-        *   *Query:* "What conditions activate TF [Name]?"
-        *   *Result:* "TF [Name] is only active under anaerobic starvation."
-    *   **Decision:** The Agent sees the M3D data was from *aerobic* users. It concludes: "The edge is real, but silent in this dataset." -> **Condition Silent** (instead of incorrectly calling it a False Positive).
-
-## Summary of Logic
-| RegulonDB (Lit) | M3D (Data) | LitSense Context | System Decision |
-|---|---|---|---|
-| Strong | Strong | (Consistent) | **Validated** (Gold Standard) |
-| None | Strong | (Silent) | **Novel Hypothesis** (Discovery!) |
-| Strong | Weak | "Requires Acidic pH" | **Condition Silent** (Correctly preserved) |
-| Weak | Weak | "Experimental Artifact" | **Probable False Positive** (Correction) |
+### 3. Reviewer Agent (The "Judge")
+*   **Role:** Synthesizes all evidence (Prior + Data + Context) to make a final classification.
+*   **Process:**
+    *   Checks **Data Strength** (from Analysis Agent).
+    *   Checks **Literature Support** (from RegulonDB).
+    *   Verifies **Context** (queries Vector Store to explain discrepancies).
+*   **Output Categories:**
+    *   **Validated:** Strong Literature + Strong Data.
+    *   **Condition Silent:** Strong Literature + Weak Data (explained by context mismatch).
+    *   **Probable False Positive:** Weak Literature + Weak Data.
+    *   **Novel Hypothesis:** No Literature + Strong Data.

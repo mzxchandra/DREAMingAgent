@@ -19,32 +19,30 @@ This system bridges these worlds using a **LangGraph cyclic workflow** with **LL
 
 ## Architecture
 
-```
 ┌──────────────────────────────────────────────────────────────────────┐
 │                        LangGraph Workflow                             │
 ├──────────────────────────────────────────────────────────────────────┤
 │                                                                       │
-│   ┌──────────┐    ┌─────────────┐    ┌─────────────────┐            │
-│   │  Loader  │───▶│Batch Manager│───▶│Research Agent   │            │
-│   │(ingest)  │    │  (queue)    │    │ (🤖 RAG/Vector) │            │
-│   └──────────┘    └─────────────┘    └────────┬────────┘            │
-│                          ▲                     │                     │
-│                          │                     ▼                     │
-│                          │            ┌────────────────┐             │
-│                          │            │Analysis Agent  │             │
-│                          │            │   (CLR/MI)     │             │
-│                          │            └────────┬───────┘             │
-│                          │                     │                     │
-│                          │                     ▼                     │
-│                          │            ┌────────────────┐             │
-│                          └────────────│  Reviewer      │             │
-│                                       │  (🤖 LLM)      │             │
-│                                       └────────────────┘             │
-│                                               │                      │
-│                                               ▼                      │
-│                                            [END]                     │
+│   ┌──────────┐    ┌─────────────┐    ┌──────────────────────────┐     │
+│   │  Loader  │───▶│Batch Manager│───▶│Research Agent            │     │
+│   │(ingest)  │    │  (queue)    │    │(Context Filter + RAG)    │     │
+│   └──────────┘    └─────────────┘    └────────┬─────────────────┘     │
+│                          ▲                    │ Active Samples        │
+│                          │                    ▼                       │
+│                          │            ┌────────────────┐              │
+│                          │            │Analysis Agent  │              │
+│                          │            │   (CLR/MI)     │              │
+│                          │            └────────┬───────┘              │
+│                          │                     │ Stats                │
+│                          │                     ▼                      │
+│                          │            ┌────────────────┐              │
+│                          └────────────│  Reviewer      │              │
+│                                       │  (🤖 LLM)      │              │
+│                                       └────────────────┘              │
+│                                               │                       │
+│                                               ▼                       │
+│                                            [END]                      │
 └──────────────────────────────────────────────────────────────────────┘
-```
 
 ### Node Responsibilities
 
@@ -52,9 +50,9 @@ This system bridges these worlds using a **LangGraph cyclic workflow** with **LL
 |------|-----|-------------|
 | **Loader** | ❌ | Ingests RegulonDB network, gene mappings, M3D expression matrix & metadata |
 | **Batch Manager** | ❌ | Manages TF processing queue, prevents memory overflow |
-| **Research Agent** | ✅ | Retrieves literature context from vector store using RAG (BAAI/bge-small-en-v1.5 embeddings), performs condition matching between dataset and literature |
-| **Analysis Agent** | ❌ | Computes Mutual Information & CLR z-scores (deterministic statistics) |
-| **Reviewer** | ✅ | Integrates RegulonDB, Research Agent context, and statistical evidence to classify edges into 4 categories using ALCF LLMs |
+| **Research Agent** | ✅ | **Dual-Mode:** 1. Filters M3D samples based on biological context. 2. Runs internal RAG workflow to retrieve & contextualize literature. |
+| **Analysis Agent** | ❌ | Computes Mutual Information & CLR z-scores on filtered samples (deterministic statistics) |
+| **Reviewer** | ✅ | Integrates RegulonDB, Analysis stats, and Context to classify edges into 4 categories using ALCF LLMs |
 
 ```python
 # From Batch Manager
@@ -75,9 +73,9 @@ DREAMingAgent/
 │   ├── nodes/
 │   │   ├── loader.py           # Data ingestion (RegulonDB + M3D)
 │   │   ├── batch_manager.py    # TF queue management
-│   │   ├── context_agent.py    # AI-powered sample filtering
+│   │   ├── research_agent.py   # Context filtering + Literature RAG loop
 │   │   ├── analysis_agent.py   # CLR/MI statistical engine
-│   │   └── reconciler.py       # AI-powered reconciliation logic
+│   │   └── reviewer_agent.py   # AI-powered reconciliation logic
 │   ├── llm/
 │   │   ├── client.py           # Google Gemini API wrapper
 │   │   └── prompts.py          # System prompts for AI reasoning
