@@ -361,53 +361,80 @@ def invoke_llm_reviewer(edges: List[Dict], tf_bnumber: str, state: AgentState) -
 
     tf_expr = state.get("analysis__tf_expression", {}).get(tf_bnumber, {})
 
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", """You are the Reviewer Agent in a gene regulatory network reconciliation system.
-
-Your role: Synthesize statistical evidence with biological literature to decide edge classifications.
-
-Core Principles:
-1. Biology is context-dependent: No correlation ≠ No interaction
-2. Literature and data complement each other
-3. Conflicts often reveal conditional regulation
-4. Preserve edges with annotations rather than delete
-5. Every decision needs scientific justification
-
-Decision Rules (4-Category System):
+    MAX_EDGES_PER_PROMPT = 50
+    edge_batches = [edges[i:i + MAX_EDGES_PER_PROMPT] for i in range(0, len(edges), MAX_EDGES_PER_PROMPT)]
+    
+    all_decisions = []
+    aggregated_notes = []
+    
+    logger.info(f"Processing {len(edges)} edges in {len(edge_batches)} batches (Max {MAX_EDGES_PER_PROMPT}/batch)")
+    
+    for i, batch in enumerate(edge_batches):
+        logger.info(f"Processing Batch {i+1}/{len(edge_batches)} ({len(batch)} edges)")
+        
+        prompt = ChatPromptTemplate.from_messages([
+            ("system", """You are the Reviewer Agent. Synthesize stats + lit to classify regulatory edges.
+            
+Rules:
 - Validated: Strong lit + Strong data (CLR>4.0)
-- ConditionSilent: Strong lit + Weak data (CLR<2.0) - true interaction but inactive in dataset conditions
-- ProbableFalsePos: Weak lit + No data (CLR<1.0) - likely experimental artifact in literature
-- NovelHypothesis: No/weak lit + Strong data (CLR>4.0) - new discovery
+- ConditionSilent: Strong lit + Weak data (CLR<2.0)
+- ProbableFalsePos: Weak lit + No data (CLR<1.0)
+- NovelHypothesis: No/weak lit + Strong data (CLR>4.0)
 
-Output valid JSON only."""),
-
-        ("human", """Review this transcription factor subgraph:
+CRITICAL: Return JSON for ALL input edges."""),
+            ("human", """Review TF Subgraph Batch {batch_num}/{total_batches}:
 
 **TF:** {tf}
 **TF Expression:** {tf_expression}
 
-**Edges to Review ({num_edges} total):**
+**Edges to Review:**
 {edge_data}
 
-For EACH edge:
-1. Classify using the 4-category system (Validated, ConditionSilent, ProbableFalsePos, NovelHypothesis)
-2. Provide 3-5 sentence scientific explanation with specific CLR scores
-3. Identify cross-edge patterns
-
+For EACH edge, classify and explain.
 {format_instructions}""")
-    ])
+        ])
 
-    formatted_prompt = prompt.format_messages(
+        formatted_prompt = prompt.format_messages(
+            tf=tf_bnumber,
+            tf_expression=format_tf_expression(tf_expr),
+            batch_num=i+1,
+            total_batches=len(edge_batches),
+            edge_data=format_edge_data_for_llm(batch),
+            format_instructions=parser.get_format_instructions()
+        )
+
+        try:
+            response = llm.invoke(formatted_prompt)
+            parsed = parser.parse(response.content)
+            
+            # Extract decisions
+            batch_decisions = parsed.get("edge_decisions", [])
+            all_decisions.extend(batch_decisions)
+            
+            # Aggregate notes
+            notes = parsed.get("tf_level_notes", "")
+            if notes:
+                aggregated_notes.append(f"Batch {i+1}: {notes}")
+                
+        except Exception as e:
+            logger.error(f"Batch {i+1} failed: {e}")
+            # Do NOT crash the whole TF, just log failure or add dummies?
+            # Ideally fallback to rule-based for this batch.
+            # For now, simplistic fallback:
+            logger.warning("Triggering Rule-Based Fallback for failed batch")
+            rule_fallback = apply_rule_based_review(batch, tf_bnumber, state)
+            all_decisions.extend([d.model_dump() for d in rule_fallback.edge_decisions])
+
+    # Validate Check
+    if len(all_decisions) == 0 and len(edges) > 0:
+        raise ValueError("No decisions generated across all batches.")
+
+    return SubgraphReview(
         tf=tf_bnumber,
-        tf_expression=format_tf_expression(tf_expr),
-        num_edges=len(edges),
-        edge_data=format_edge_data_for_llm(edges),
-        format_instructions=parser.get_format_instructions()
+        edge_decisions=all_decisions,
+        tf_level_notes=" | ".join(aggregated_notes),
+        comparative_analysis={}
     )
-
-    response = llm.invoke(formatted_prompt)
-    parsed = parser.parse(response.content)
-    return SubgraphReview(**parsed)
 
 
 def apply_rule_based_review(edges: List[Dict], tf_bnumber: str, state: AgentState) -> SubgraphReview:

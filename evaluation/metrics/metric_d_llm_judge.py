@@ -72,9 +72,9 @@ class MetricDLLMJudge(BaseMetric):
         
         return {
             "network": subset_network_path,
-            "gene_product": gene_product_path,
-            "expression": expression_path,
-            "metadata": metadata_path
+            "gene_product": gene_prod_path,
+            "expression": expr_path,
+            "metadata": meta_path
         }
 
     def run_evaluation(self, data: Dict[str, Any]) -> Dict[str, Any]:

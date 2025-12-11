@@ -3,11 +3,12 @@
 ## Overview
 Evaluated 1 metrics.
 
-### MetricDLLMJudge
-- **mean_bio_accuracy**: 253.33%
-- **mean_stat_reasoning**: 2.267
-- **mean_clarity**: 3.900
-- **mean_overall**: 2.533
-- **high_quality_rate**: 0.00%
+### MetricASabotage
+- **fp_detection_rate**: 80.00%
+- **fp_precision**: 57.14%
+- **recovery_rate**: 20.00%
+- **tp_fp**: 4
+- **fn_fp**: 1
+- **fp_detector**: 3
 
-![metric_d_score_dist.png](metric_d_score_dist.png)
+![metric_a_fp_confusion_matrix.png](metric_a_fp_confusion_matrix.png)

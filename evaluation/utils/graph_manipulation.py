@@ -54,8 +54,21 @@ def inject_false_edges(
     max_attempts = n_edges * 100
     
     while len(injected_edges) < n_edges and attempts < max_attempts:
-        if focus_node and focus_node in nodes:
-            source = focus_node
+        if focus_node:
+            if isinstance(focus_node, list):
+                # Restrict source to one of the focus nodes (e.g. 100 TFs)
+                # But filter to ensure it's in the graph
+                valid_sources = [n for n in focus_node if n in nodes]
+                if not valid_sources:
+                    # Fallback if none in graph
+                    source = np.random.choice(nodes)
+                else:
+                    source = np.random.choice(valid_sources)
+            elif focus_node in nodes:
+                source = focus_node
+            else:
+                source = np.random.choice(nodes)
+            
             target = np.random.choice(nodes)
         else:
             source = np.random.choice(nodes)
@@ -102,8 +115,12 @@ def delete_true_edges(
     candidates = []
     for u, v in G.edges():
         # Check focus node constraint
-        if focus_node and u != focus_node:
-            continue
+        if focus_node:
+            if isinstance(focus_node, list):
+                if u not in focus_node:
+                    continue
+            elif u != focus_node:
+                continue
             
         # Check evidence level constraint
         if evidence_level:

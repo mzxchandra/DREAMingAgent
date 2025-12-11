@@ -65,7 +65,7 @@ def main():
     
     # Limit per TF
     # Limit per TF
-    DOCS_LIMIT_PER_TF = 3
+    DOCS_LIMIT_PER_TF = 10
     TOTAL_DOCS_LIMIT = None # Process all TFs
     
     processed_count = 0

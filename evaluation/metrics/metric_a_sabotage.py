@@ -47,10 +47,25 @@ class MetricASabotage(BaseMetric):
         G = load_network_as_graph(network_path)
         initial_edge_count = G.number_of_edges()
         logger.info(f"Loaded real network with {initial_edge_count} edges.")
-        
         # 3. Inject False Positives (Sabotage)
         # We inject edges that do NOT exist in RegulonDB (presumed false)
-        focus_tf = self.config.limit_tfs[0].lower() if self.config.limit_tfs else None
+        # If running on multiple TFs, we want Global Sabotage RESTRICTED to those TFs
+        # If running on single TF, we focus sabotage around that TF
+        if self.config.limit_tfs:
+             # Fix for ID Mismatch: Graph uses Names (araC), limit_tfs uses IDs (b0064)
+             # We need to map IDs -> Names to ensure focus_node filtering works
+             from src.utils.parsers import parse_gene_product_mapping
+             _, bnumber_to_name, _ = parse_gene_product_mapping("data/GeneProductAllIdentifiersSet.tsv")
+             
+             focus_tf = []
+             for tf_id in self.config.limit_tfs:
+                 name = bnumber_to_name.get(tf_id)
+                 if name:
+                     focus_tf.append(name.lower())
+                 else:
+                     focus_tf.append(tf_id.lower()) # Fallback to ID
+        else:
+            focus_tf = None # Truly Global (any node in graph)
         
         G_injected, injected_ids = inject_false_edges(
             G, 
@@ -124,7 +139,7 @@ class MetricASabotage(BaseMetric):
         # Look in reconciliation log
         for entry in results["reconciliation_log"]:
             edge_id = f"{entry['source_tf_name']}→{entry['target_gene_name']}"
-            if entry['reconciliation_status'] == "ProbableFalsePositive":
+            if entry['reconciliation_status'] == "ProbableFalsePos":
                 detected_fp.add(edge_id)
                 
         # Also check false_positive_candidates list (redundant but safe)
@@ -168,9 +183,76 @@ class MetricASabotage(BaseMetric):
             "fp_detector": fp_detector
         }
 
+    def _generate_details_report(self, results: Dict[str, Any], output_dir: Path) -> Path:
+        """Generate a detailed markdown report of the sabotage targets."""
+        report_path = output_dir / "metric_a_sabotage_details.md"
+        
+        injected = self.meta.get("injected_ids", [])
+        deleted = self.meta.get("deleted_ids", [])
+        
+        # Helper to find edge in log
+        log_map = {}
+        for entry in results.get("reconciliation_log", []):
+            eid = f"{entry['source_tf_name']}→{entry['target_gene_name']}"
+            log_map[eid] = {
+                "status": entry.get('reconciliation_status', 'Unknown'),
+                "z_score": entry.get('m3d_z_score', 0.0)
+            }
+            
+        lines = ["# Metric A: Sabotage Detail Report\n"]
+        lines.append(f"**Focus TF:** {self.config.limit_tfs[0] if self.config.limit_tfs else 'Global'}\n")
+        
+        lines.append("## 1. Injected False Positives (Goal: Detect as ProbableFalsePos)\n")
+        lines.append("| Edge ID | Previous Value | System Prediction | Z-Score | Outcome |")
+        lines.append("|---|---|---|---|---|")
+        
+        for eid in injected:
+            data = log_map.get(eid, {"status": "Not Reviewed", "z_score": "N/A"})
+            pred = data["status"]
+            z = data["z_score"]
+            z_str = f"{z:.2f}" if isinstance(z, (int, float)) else str(z)
+            
+            # Outcome logic
+            if pred == "ProbableFalsePos":
+                outcome = "✅ DETECTED"
+            elif pred == "Not Reviewed":
+                outcome = "⚠️ SKIPPED"
+            else:
+                outcome = "❌ FAILED (Accepted)"
+            
+            lines.append(f"| {eid} | Non-Existent | {pred} | {z_str} | {outcome} |")
+            
+        lines.append("\n## 2. Deleted True Edges (Goal: Recover as NovelHypothesis)\n")
+        lines.append("| Edge ID | Previous Value | System Prediction | Z-Score | Outcome |")
+        lines.append("|---|---|---|---|---|")
+        
+        for eid in deleted:
+            data = log_map.get(eid, {"status": "Not Found (Low Signal)", "z_score": "N/A"})
+            pred = data["status"]
+            z = data["z_score"]
+            z_str = f"{z:.2f}" if isinstance(z, (int, float)) else str(z)
+            
+            # Outcome logic
+            if pred == "NovelHypothesis":
+                outcome = "✅ RECOVERED"
+            elif pred == "Not Found (Low Signal)":
+                outcome = "❌ MISSED (Low Stats)"
+            else:
+                outcome = f"⚠️ {pred}" 
+            
+            lines.append(f"| {eid} | Existing (True) | {pred} | {z_str} | {outcome} |")
+            
+        with open(report_path, "w") as f:
+            f.write("\n".join(lines))
+            
+        return report_path
+
     def generate_plots(self, results: Dict[str, Any], output_dir: Path) -> List[Path]:
         scores = self.compute_scores(results)
         paths = []
+        
+        # 0. Generate Detailed Report
+        self._generate_details_report(results, output_dir)
         
         # 1. FP Detection Confusion Matrix (Subset: Only Injected vs Real)
         # We simplify the universe to (Injected U Flagged)

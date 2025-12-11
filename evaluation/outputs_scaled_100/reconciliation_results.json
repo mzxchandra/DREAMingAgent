@@ -1,0 +1,1707 @@
+{
+  "reconciliation_log": [
+    {
+      "source_tf": "b0338",
+      "target_gene": "b0125",
+      "source_tf_name": "cynr",
+      "target_gene_name": "hpt",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Reviewed",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Non-Existent. Outcome: \u26a0\ufe0f SKIPPED. Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b1013",
+      "target_gene": "b4160",
+      "source_tf_name": "rutr",
+      "target_gene_name": "psd",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Reviewed",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Non-Existent. Outcome: \u26a0\ufe0f SKIPPED. Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b1187",
+      "target_gene": "b3105",
+      "source_tf_name": "fadr",
+      "target_gene_name": "yhaj",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Reviewed",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Non-Existent. Outcome: \u26a0\ufe0f SKIPPED. Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b0603",
+      "target_gene": "b4173",
+      "source_tf_name": "citr",
+      "target_gene_name": "hflx",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Reviewed",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Non-Existent. Outcome: \u26a0\ufe0f SKIPPED. Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b0535",
+      "target_gene": "b2722",
+      "source_tf_name": "fimz",
+      "target_gene_name": "hycd",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Reviewed",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Non-Existent. Outcome: \u26a0\ufe0f SKIPPED. Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b0571",
+      "target_gene": "b3525",
+      "source_tf_name": "cusr",
+      "target_gene_name": "pdeh",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Reviewed",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Non-Existent. Outcome: \u26a0\ufe0f SKIPPED. Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b0076",
+      "target_gene": "b4368",
+      "source_tf_name": "leuo",
+      "target_gene_name": "leuv",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Reviewed",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Non-Existent. Outcome: \u26a0\ufe0f SKIPPED. Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b1221",
+      "target_gene": "b4837",
+      "source_tf_name": "narl",
+      "target_gene_name": "spfp",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "ProbableFalsePos",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Non-Existent. Outcome: \u2705 DETECTED. Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b1275",
+      "target_gene": "b1362",
+      "source_tf_name": "cysb",
+      "target_gene_name": "rzpr",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Reviewed",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Non-Existent. Outcome: \u26a0\ufe0f SKIPPED. Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b1450",
+      "target_gene": "b0683",
+      "source_tf_name": "mcbr",
+      "target_gene_name": "fur",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Reviewed",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Non-Existent. Outcome: \u26a0\ufe0f SKIPPED. Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b1594",
+      "target_gene": "b1812",
+      "source_tf_name": "mlc",
+      "target_gene_name": "pabb",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Reviewed",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Non-Existent. Outcome: \u26a0\ufe0f SKIPPED. Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b1853",
+      "target_gene": "b3281",
+      "source_tf_name": "yebk",
+      "target_gene_name": "aroe",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "ProbableFalsePos",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Non-Existent. Outcome: \u2705 DETECTED. Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b1921",
+      "target_gene": "b2553",
+      "source_tf_name": "fliz",
+      "target_gene_name": "glnb",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.02,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "ProbableFalsePos",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Non-Existent. Outcome: \u2705 DETECTED. Z-Score: 0.02. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b1356",
+      "target_gene": "b1932",
+      "source_tf_name": "racr",
+      "target_gene_name": "yedl",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Reviewed",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Non-Existent. Outcome: \u26a0\ufe0f SKIPPED. Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b0305",
+      "target_gene": "b4197",
+      "source_tf_name": "rclr",
+      "target_gene_name": "ulae",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Reviewed",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Non-Existent. Outcome: \u26a0\ufe0f SKIPPED. Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b0113",
+      "target_gene": "b1710",
+      "source_tf_name": "pdhr",
+      "target_gene_name": "btue",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Reviewed",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Non-Existent. Outcome: \u26a0\ufe0f SKIPPED. Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b1201",
+      "target_gene": "b2754",
+      "source_tf_name": "dhar",
+      "target_gene_name": "cas2",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Reviewed",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Non-Existent. Outcome: \u26a0\ufe0f SKIPPED. Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b0399",
+      "target_gene": "b1675",
+      "source_tf_name": "phob",
+      "target_gene_name": "fumd",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Reviewed",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Non-Existent. Outcome: \u26a0\ufe0f SKIPPED. Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b0566",
+      "target_gene": "b1453",
+      "source_tf_name": "envy",
+      "target_gene_name": "ansp",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Reviewed",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Non-Existent. Outcome: \u26a0\ufe0f SKIPPED. Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b0840",
+      "target_gene": "b4088",
+      "source_tf_name": "deor",
+      "target_gene_name": "alsb",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Reviewed",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Non-Existent. Outcome: \u26a0\ufe0f SKIPPED. Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b0683",
+      "target_gene": "b0233",
+      "source_tf_name": "fur",
+      "target_gene_name": "yafo",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Reviewed",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Non-Existent. Outcome: \u26a0\ufe0f SKIPPED. Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b0911",
+      "target_gene": "b1182",
+      "source_tf_name": "rpsa",
+      "target_gene_name": "hlye",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.65,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "ProbableFalsePos",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Non-Existent. Outcome: \u2705 DETECTED. Z-Score: 0.65. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b1574",
+      "target_gene": "b3005",
+      "source_tf_name": "dicf",
+      "target_gene_name": "exbd",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "ProbableFalsePos",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Non-Existent. Outcome: \u2705 DETECTED. Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b1356",
+      "target_gene": "b3167",
+      "source_tf_name": "racr",
+      "target_gene_name": "rbfa",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Reviewed",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Non-Existent. Outcome: \u26a0\ufe0f SKIPPED. Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b0313",
+      "target_gene": "b2108",
+      "source_tf_name": "beti",
+      "target_gene_name": "yeha",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Reviewed",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Non-Existent. Outcome: \u26a0\ufe0f SKIPPED. Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b0846",
+      "target_gene": "b0998",
+      "source_tf_name": "rcda",
+      "target_gene_name": "tord",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Reviewed",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Non-Existent. Outcome: \u26a0\ufe0f SKIPPED. Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b0069",
+      "target_gene": "b0779",
+      "source_tf_name": "sgrr",
+      "target_gene_name": "uvrb",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "ProbableFalsePos",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Non-Existent. Outcome: \u2705 DETECTED. Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b0346",
+      "target_gene": "b2253",
+      "source_tf_name": "mhpr",
+      "target_gene_name": "arnb",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Reviewed",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Non-Existent. Outcome: \u26a0\ufe0f SKIPPED. Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b1320",
+      "target_gene": "b3425",
+      "source_tf_name": "ycjw",
+      "target_gene_name": "glpe",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Reviewed",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Non-Existent. Outcome: \u26a0\ufe0f SKIPPED. Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b0020",
+      "target_gene": "b3377",
+      "source_tf_name": "nhar",
+      "target_gene_name": "yhft",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Reviewed",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Non-Existent. Outcome: \u26a0\ufe0f SKIPPED. Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b1914",
+      "target_gene": "b3426",
+      "source_tf_name": "uvry",
+      "target_gene_name": "glpd",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Reviewed",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Non-Existent. Outcome: \u26a0\ufe0f SKIPPED. Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b1275",
+      "target_gene": "b1225",
+      "source_tf_name": "cysb",
+      "target_gene_name": "narh",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Reviewed",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Non-Existent. Outcome: \u26a0\ufe0f SKIPPED. Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b0315",
+      "target_gene": "b3375",
+      "source_tf_name": "pdel",
+      "target_gene_name": "frlr",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Reviewed",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Non-Existent. Outcome: \u26a0\ufe0f SKIPPED. Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b0911",
+      "target_gene": "b3774",
+      "source_tf_name": "rpsa",
+      "target_gene_name": "ilvc",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.28,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "ProbableFalsePos",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Non-Existent. Outcome: \u2705 DETECTED. Z-Score: 0.28. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b0761",
+      "target_gene": "b1569",
+      "source_tf_name": "mode",
+      "target_gene_name": "dicc",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "ProbableFalsePos",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Non-Existent. Outcome: \u2705 DETECTED. Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b1659",
+      "target_gene": "b4458",
+      "source_tf_name": "punr",
+      "target_gene_name": "oxys",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Reviewed",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Non-Existent. Outcome: \u26a0\ufe0f SKIPPED. Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b1853",
+      "target_gene": "b2537",
+      "source_tf_name": "yebk",
+      "target_gene_name": "hcar",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "ProbableFalsePos",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Non-Existent. Outcome: \u2705 DETECTED. Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b1111",
+      "target_gene": "b3167",
+      "source_tf_name": "comr",
+      "target_gene_name": "rbfa",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Reviewed",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Non-Existent. Outcome: \u26a0\ufe0f SKIPPED. Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b0761",
+      "target_gene": "b4073",
+      "source_tf_name": "mode",
+      "target_gene_name": "nrfd",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "ProbableFalsePos",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Non-Existent. Outcome: \u2705 DETECTED. Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b1574",
+      "target_gene": "b0066",
+      "source_tf_name": "dicf",
+      "target_gene_name": "thiq",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 2.3,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "ConditionSilent",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Non-Existent. Outcome: \u274c FAILED (Accepted). Z-Score: 2.3. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b1827",
+      "target_gene": "b0994",
+      "source_tf_name": "kdgr",
+      "target_gene_name": "tort",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "ProbableFalsePos",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Non-Existent. Outcome: \u2705 DETECTED. Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b0464",
+      "target_gene": "b0311",
+      "source_tf_name": "acrr",
+      "target_gene_name": "beta",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "ProbableFalsePos",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Non-Existent. Outcome: \u2705 DETECTED. Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b1221",
+      "target_gene": "b1044",
+      "source_tf_name": "narl",
+      "target_gene_name": "ymda",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "ProbableFalsePos",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Non-Existent. Outcome: \u2705 DETECTED. Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b1284",
+      "target_gene": "b0203",
+      "source_tf_name": "ycit",
+      "target_gene_name": "alav",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Reviewed",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Non-Existent. Outcome: \u26a0\ufe0f SKIPPED. Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b1328",
+      "target_gene": "b1460",
+      "source_tf_name": "pgrr",
+      "target_gene_name": "ydcc",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Reviewed",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Non-Existent. Outcome: \u26a0\ufe0f SKIPPED. Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b1618",
+      "target_gene": "b3191",
+      "source_tf_name": "uidr",
+      "target_gene_name": "mlab",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Reviewed",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Non-Existent. Outcome: \u26a0\ufe0f SKIPPED. Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b1735",
+      "target_gene": "b4702",
+      "source_tf_name": "chbr",
+      "target_gene_name": "mgtl",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Reviewed",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Non-Existent. Outcome: \u26a0\ufe0f SKIPPED. Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b0566",
+      "target_gene": "b3313",
+      "source_tf_name": "envy",
+      "target_gene_name": "rplp",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Reviewed",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Non-Existent. Outcome: \u26a0\ufe0f SKIPPED. Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b0566",
+      "target_gene": "b4388",
+      "source_tf_name": "envy",
+      "target_gene_name": "serb",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Reviewed",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Non-Existent. Outcome: \u26a0\ufe0f SKIPPED. Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b1642",
+      "target_gene": "b3876",
+      "source_tf_name": "slya",
+      "target_gene_name": "yiho",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Reviewed",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Non-Existent. Outcome: \u26a0\ufe0f SKIPPED. Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b0113",
+      "target_gene": "b0085",
+      "source_tf_name": "pdhr",
+      "target_gene_name": "mure",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Found (Low Signal)",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Existing (True). Outcome: \u274c MISSED (Low Stats). Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b1450",
+      "target_gene": "b1258",
+      "source_tf_name": "mcbr",
+      "target_gene_name": "ycif",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Found (Low Signal)",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Existing (True). Outcome: \u274c MISSED (Low Stats). Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b1642",
+      "target_gene": "b1182",
+      "source_tf_name": "slya",
+      "target_gene_name": "hlye",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Found (Low Signal)",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Existing (True). Outcome: \u274c MISSED (Low Stats). Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b1508",
+      "target_gene": "b2451",
+      "source_tf_name": "hipb",
+      "target_gene_name": "euta",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Found (Low Signal)",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Existing (True). Outcome: \u274c MISSED (Low Stats). Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b0080",
+      "target_gene": "b2167",
+      "source_tf_name": "cra",
+      "target_gene_name": "frua",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Found (Low Signal)",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Existing (True). Outcome: \u274c MISSED (Low Stats). Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b0683",
+      "target_gene": "b3333",
+      "source_tf_name": "fur",
+      "target_gene_name": "gspl",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Found (Low Signal)",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Existing (True). Outcome: \u274c MISSED (Low Stats). Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b1642",
+      "target_gene": "b4302",
+      "source_tf_name": "slya",
+      "target_gene_name": "sgca",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Found (Low Signal)",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Existing (True). Outcome: \u274c MISSED (Low Stats). Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b0315",
+      "target_gene": "b1939",
+      "source_tf_name": "pdel",
+      "target_gene_name": "flig",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Found (Low Signal)",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Existing (True). Outcome: \u274c MISSED (Low Stats). Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b0399",
+      "target_gene": "b3521",
+      "source_tf_name": "phob",
+      "target_gene_name": "rcdb",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Found (Low Signal)",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Existing (True). Outcome: \u274c MISSED (Low Stats). Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b0020",
+      "target_gene": "b2590",
+      "source_tf_name": "nhar",
+      "target_gene_name": "gltw",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Found (Low Signal)",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Existing (True). Outcome: \u274c MISSED (Low Stats). Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b0294",
+      "target_gene": "b1891",
+      "source_tf_name": "mata",
+      "target_gene_name": "flhc",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Found (Low Signal)",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Existing (True). Outcome: \u274c MISSED (Low Stats). Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b0294",
+      "target_gene": "b0294",
+      "source_tf_name": "mata",
+      "target_gene_name": "mata",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Found (Low Signal)",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Existing (True). Outcome: \u274c MISSED (Low Stats). Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b0020",
+      "target_gene": "b3276",
+      "source_tf_name": "nhar",
+      "target_gene_name": "alau",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Found (Low Signal)",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Existing (True). Outcome: \u274c MISSED (Low Stats). Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b1334",
+      "target_gene": "b1334",
+      "source_tf_name": "fnr",
+      "target_gene_name": "fnr",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Found (Low Signal)",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Existing (True). Outcome: \u274c MISSED (Low Stats). Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b0683",
+      "target_gene": "b2156",
+      "source_tf_name": "fur",
+      "target_gene_name": "lysp",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Found (Low Signal)",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Existing (True). Outcome: \u274c MISSED (Low Stats). Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b0064",
+      "target_gene": "b2840",
+      "source_tf_name": "arac",
+      "target_gene_name": "ygea",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Found (Low Signal)",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Existing (True). Outcome: \u274c MISSED (Low Stats). Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b0020",
+      "target_gene": "b4009",
+      "source_tf_name": "nhar",
+      "target_gene_name": "rrle",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Found (Low Signal)",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Existing (True). Outcome: \u274c MISSED (Low Stats). Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b0399",
+      "target_gene": "b4093",
+      "source_tf_name": "phob",
+      "target_gene_name": "phno",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Found (Low Signal)",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Existing (True). Outcome: \u274c MISSED (Low Stats). Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b0683",
+      "target_gene": "b0804",
+      "source_tf_name": "fur",
+      "target_gene_name": "ybix",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Found (Low Signal)",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Existing (True). Outcome: \u274c MISSED (Low Stats). Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b0683",
+      "target_gene": "b3874",
+      "source_tf_name": "fur",
+      "target_gene_name": "yihn",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Found (Low Signal)",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Existing (True). Outcome: \u274c MISSED (Low Stats). Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b0034",
+      "target_gene": "b0041",
+      "source_tf_name": "caif",
+      "target_gene_name": "fixa",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Found (Low Signal)",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Existing (True). Outcome: \u274c MISSED (Low Stats). Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b1013",
+      "target_gene": "b1651",
+      "source_tf_name": "rutr",
+      "target_gene_name": "gloa",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Found (Low Signal)",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Existing (True). Outcome: \u274c MISSED (Low Stats). Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b0145",
+      "target_gene": "b4417",
+      "source_tf_name": "dksa",
+      "target_gene_name": "rybb",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Found (Low Signal)",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Existing (True). Outcome: \u274c MISSED (Low Stats). Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b1921",
+      "target_gene": "b1493",
+      "source_tf_name": "fliz",
+      "target_gene_name": "gadb",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Found (Low Signal)",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Existing (True). Outcome: \u274c MISSED (Low Stats). Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b0305",
+      "target_gene": "b0303",
+      "source_tf_name": "rclr",
+      "target_gene_name": "rclb",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Found (Low Signal)",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Existing (True). Outcome: \u274c MISSED (Low Stats). Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b0399",
+      "target_gene": "b4094",
+      "source_tf_name": "phob",
+      "target_gene_name": "phnn",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Found (Low Signal)",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Existing (True). Outcome: \u274c MISSED (Low Stats). Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b1499",
+      "target_gene": "b0976",
+      "source_tf_name": "ydeo",
+      "target_gene_name": "hyae",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Found (Low Signal)",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Existing (True). Outcome: \u274c MISSED (Low Stats). Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b1221",
+      "target_gene": "b1223",
+      "source_tf_name": "narl",
+      "target_gene_name": "nark",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 2.55,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "ConditionSilent",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Existing (True). Outcome: \u26a0\ufe0f ConditionSilent. Z-Score: 2.55. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b0020",
+      "target_gene": "b3995",
+      "source_tf_name": "nhar",
+      "target_gene_name": "rsd",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Found (Low Signal)",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Existing (True). Outcome: \u274c MISSED (Low Stats). Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b0357",
+      "target_gene": "b0357",
+      "source_tf_name": "frmr",
+      "target_gene_name": "frmr",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Found (Low Signal)",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Existing (True). Outcome: \u274c MISSED (Low Stats). Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b1275",
+      "target_gene": "b1379",
+      "source_tf_name": "cysb",
+      "target_gene_name": "hslj",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Found (Low Signal)",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Existing (True). Outcome: \u274c MISSED (Low Stats). Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b0080",
+      "target_gene": "b2007",
+      "source_tf_name": "cra",
+      "target_gene_name": "tmar",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Found (Low Signal)",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Existing (True). Outcome: \u274c MISSED (Low Stats). Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b0683",
+      "target_gene": "b0728",
+      "source_tf_name": "fur",
+      "target_gene_name": "succ",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Found (Low Signal)",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Existing (True). Outcome: \u274c MISSED (Low Stats). Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b1642",
+      "target_gene": "b2755",
+      "source_tf_name": "slya",
+      "target_gene_name": "cas1",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Found (Low Signal)",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Existing (True). Outcome: \u274c MISSED (Low Stats). Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b1499",
+      "target_gene": "b0974",
+      "source_tf_name": "ydeo",
+      "target_gene_name": "hyac",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Found (Low Signal)",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Existing (True). Outcome: \u274c MISSED (Low Stats). Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b0676",
+      "target_gene": "b4808",
+      "source_tf_name": "nagc",
+      "target_gene_name": "chiz",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Found (Low Signal)",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Existing (True). Outcome: \u274c MISSED (Low Stats). Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b1334",
+      "target_gene": "b2276",
+      "source_tf_name": "fnr",
+      "target_gene_name": "nuon",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Found (Low Signal)",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Existing (True). Outcome: \u274c MISSED (Low Stats). Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b1221",
+      "target_gene": "b4079",
+      "source_tf_name": "narl",
+      "target_gene_name": "fdhf",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Found (Low Signal)",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Existing (True). Outcome: \u274c MISSED (Low Stats). Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b0399",
+      "target_gene": "b1970",
+      "source_tf_name": "phob",
+      "target_gene_name": "hiuh",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Found (Low Signal)",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Existing (True). Outcome: \u274c MISSED (Low Stats). Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b0080",
+      "target_gene": "b0070",
+      "source_tf_name": "cra",
+      "target_gene_name": "seta",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Found (Low Signal)",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Existing (True). Outcome: \u274c MISSED (Low Stats). Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b1334",
+      "target_gene": "b2730",
+      "source_tf_name": "fnr",
+      "target_gene_name": "hype",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Found (Low Signal)",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Existing (True). Outcome: \u274c MISSED (Low Stats). Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b1334",
+      "target_gene": "b2280",
+      "source_tf_name": "fnr",
+      "target_gene_name": "nuoj",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Found (Low Signal)",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Existing (True). Outcome: \u274c MISSED (Low Stats). Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b0020",
+      "target_gene": "b3277",
+      "source_tf_name": "nhar",
+      "target_gene_name": "ileu",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Found (Low Signal)",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Existing (True). Outcome: \u274c MISSED (Low Stats). Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b1221",
+      "target_gene": "b1588",
+      "source_tf_name": "narl",
+      "target_gene_name": "ynff",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Found (Low Signal)",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Existing (True). Outcome: \u274c MISSED (Low Stats). Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b0683",
+      "target_gene": "b2392",
+      "source_tf_name": "fur",
+      "target_gene_name": "mnth",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Found (Low Signal)",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Existing (True). Outcome: \u274c MISSED (Low Stats). Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b0683",
+      "target_gene": "b0896",
+      "source_tf_name": "fur",
+      "target_gene_name": "dmsc",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Found (Low Signal)",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Existing (True). Outcome: \u274c MISSED (Low Stats). Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b1531",
+      "target_gene": "b0952",
+      "source_tf_name": "mara",
+      "target_gene_name": "pqic",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Found (Low Signal)",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Existing (True). Outcome: \u274c MISSED (Low Stats). Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b0889",
+      "target_gene": "b1247",
+      "source_tf_name": "lrp",
+      "target_gene_name": "oppf",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Found (Low Signal)",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Existing (True). Outcome: \u274c MISSED (Low Stats). Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b1642",
+      "target_gene": "b1396",
+      "source_tf_name": "slya",
+      "target_gene_name": "paai",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Found (Low Signal)",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Existing (True). Outcome: \u274c MISSED (Low Stats). Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b0683",
+      "target_gene": "b3123",
+      "source_tf_name": "fur",
+      "target_gene_name": "rnpb",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "Not Found (Low Signal)",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Existing (True). Outcome: \u274c MISSED (Low Stats). Z-Score: 0.0. (Derived from detailed report)"
+    }
+  ],
+  "novel_hypotheses": [],
+  "false_positive_candidates": [
+    {
+      "source_tf": "b1221",
+      "target_gene": "b4837",
+      "source_tf_name": "narl",
+      "target_gene_name": "spfp",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "ProbableFalsePos",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Non-Existent. Outcome: \u2705 DETECTED. Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b1853",
+      "target_gene": "b3281",
+      "source_tf_name": "yebk",
+      "target_gene_name": "aroe",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "ProbableFalsePos",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Non-Existent. Outcome: \u2705 DETECTED. Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b1921",
+      "target_gene": "b2553",
+      "source_tf_name": "fliz",
+      "target_gene_name": "glnb",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.02,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "ProbableFalsePos",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Non-Existent. Outcome: \u2705 DETECTED. Z-Score: 0.02. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b0911",
+      "target_gene": "b1182",
+      "source_tf_name": "rpsa",
+      "target_gene_name": "hlye",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.65,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "ProbableFalsePos",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Non-Existent. Outcome: \u2705 DETECTED. Z-Score: 0.65. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b1574",
+      "target_gene": "b3005",
+      "source_tf_name": "dicf",
+      "target_gene_name": "exbd",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "ProbableFalsePos",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Non-Existent. Outcome: \u2705 DETECTED. Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b0069",
+      "target_gene": "b0779",
+      "source_tf_name": "sgrr",
+      "target_gene_name": "uvrb",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "ProbableFalsePos",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Non-Existent. Outcome: \u2705 DETECTED. Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b0911",
+      "target_gene": "b3774",
+      "source_tf_name": "rpsa",
+      "target_gene_name": "ilvc",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.28,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "ProbableFalsePos",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Non-Existent. Outcome: \u2705 DETECTED. Z-Score: 0.28. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b0761",
+      "target_gene": "b1569",
+      "source_tf_name": "mode",
+      "target_gene_name": "dicc",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "ProbableFalsePos",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Non-Existent. Outcome: \u2705 DETECTED. Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b1853",
+      "target_gene": "b2537",
+      "source_tf_name": "yebk",
+      "target_gene_name": "hcar",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "ProbableFalsePos",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Non-Existent. Outcome: \u2705 DETECTED. Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b0761",
+      "target_gene": "b4073",
+      "source_tf_name": "mode",
+      "target_gene_name": "nrfd",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "ProbableFalsePos",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Non-Existent. Outcome: \u2705 DETECTED. Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b1827",
+      "target_gene": "b0994",
+      "source_tf_name": "kdgr",
+      "target_gene_name": "tort",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "ProbableFalsePos",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Non-Existent. Outcome: \u2705 DETECTED. Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b0464",
+      "target_gene": "b0311",
+      "source_tf_name": "acrr",
+      "target_gene_name": "beta",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "ProbableFalsePos",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Non-Existent. Outcome: \u2705 DETECTED. Z-Score: 0.0. (Derived from detailed report)"
+    },
+    {
+      "source_tf": "b1221",
+      "target_gene": "b1044",
+      "source_tf_name": "narl",
+      "target_gene_name": "ymda",
+      "regulondb_evidence": "SabotageTest",
+      "regulondb_effect": "?",
+      "m3d_z_score": 0.0,
+      "m3d_mi": 0.0,
+      "reconciliation_status": "ProbableFalsePos",
+      "context_tags": [
+        "Sabotage"
+      ],
+      "notes": "[Reconstructed] Previous State: Non-Existent. Outcome: \u2705 DETECTED. Z-Score: 0.0. (Derived from detailed report)"
+    }
+  ],
+  "summary": {
+    "total_edges": 100,
+    "novel_count": 0,
+    "false_positive_count": 13
+  }
+}

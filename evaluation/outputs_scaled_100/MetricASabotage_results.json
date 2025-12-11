@@ -1,0 +1,15 @@
+{
+  "metric": "MetricASabotage",
+  "scores": {
+    "fp_detection_rate": 0.26,
+    "fp_precision": 0.04436860068259386,
+    "recovery_rate": 0.0,
+    "tp_fp": 13,
+    "fn_fp": 37,
+    "fp_detector": 280
+  },
+  "plot_paths": [
+    "evaluation/outputs_scaled_100/metric_a_fp_confusion_matrix.png",
+    "evaluation/outputs_scaled_100/metric_a_rates.png"
+  ]
+}
