@@ -44,3 +44,7 @@ results/
 build/
 dist/
 *.egg-info/
+
+# Data
+data/
+AgentVenv/

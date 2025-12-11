@@ -22,6 +22,7 @@ from ..state import (
     InteractionEffect
 )
 from ..llm_config import create_argonne_llm
+from ..llm.client import generate_structured_response
 from ..llm.prompts import (
     RECONCILER_SYSTEM_PROMPT,
     format_reconciliation_prompt,
@@ -34,7 +35,7 @@ from ..llm.prompts import (
 # ============================================================================
 
 # Z-score thresholds for reconciliation logic (used in fallback mode)
-HIGH_DATA_SUPPORT = 4.0      # Strong data support
+HIGH_DATA_SUPPORT = 2.5      # Lowered from 4.0 to catch "long tail" signals (Discovery Threshold)
 MODERATE_DATA_SUPPORT = 2.0  # Some data support
 LOW_DATA_SUPPORT = 1.0       # Weak/no data support
 
@@ -478,6 +479,8 @@ def _determine_status_rule_based(
     has_low_data = z_score < LOW_DATA_SUPPORT
     
     if evidence_level == "Strong" and has_high_data:
+        if "FNR" in tf_name: # Debug Trace for User
+             logger.info(f"DEBUG TRACE [FNR->{gene_name}]: Evidence=Strong, Z={z_score:.2f} >= {HIGH_DATA_SUPPORT} -> Validated")
         return ("Validated", f"Strong literature evidence confirmed by data (z={z_score:.2f})")
     
     if evidence_level == "Strong" and has_moderate_data:
@@ -504,6 +507,13 @@ def _determine_status_rule_based(
         else:
             return ("Pending", f"Unknown evidence type with z={z_score:.2f}")
     
+            return ("Pending", f"Unknown evidence type with z={z_score:.2f}")
+    
+    # Fallback/Default
+    if "FNR" in tf_name: # Debug Trace for User
+         reason = "Z < Threshold" if z_score < HIGH_DATA_SUPPORT else "Review Required"
+         logger.info(f"DEBUG TRACE [FNR->{gene_name}]: Evidence={evidence_level}, Z={z_score:.2f} -> Pending/Reject ({reason})")
+
     return ("Pending", f"Edge requires manual review (evidence={evidence_level}, z={z_score:.2f})")
 
 
@@ -540,6 +550,9 @@ def _find_novel_edges(
             tf_name = bnumber_to_name.get(tf, tf)
             gene_name = bnumber_to_name.get(gene, gene)
             
+            if "FNR" in tf_name or "b1334" in tf: # Debug Trace
+                 logger.info(f"DEBUG TRACE [FNR->{gene_name}]: Novelty Candidate! Z={z_score:.2f} >= {HIGH_DATA_SUPPORT}")
+
             novel = ReconciliationResult(
                 source_tf=tf,
                 target_gene=gene,
